@@ -406,21 +406,24 @@ func (s *SFU) addSourceToSubscriber(subscriber *SubscriberPeer, source *SourceTr
 	key := participantSlotKey{ParticipantID: source.ParticipantID, Kind: source.Kind}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if _, exists := subscriber.Senders[key]; exists {
+		s.mu.Unlock()
 		return nil
 	}
 
 	sender, err := subscriber.PC.AddTrack(source.Track)
 	if err != nil {
+		s.mu.Unlock()
 		return err
 	}
 
 	subscriber.Senders[key] = sender
+	isVideo := source.Remote != nil && source.Remote.Kind() == webrtc.RTPCodecTypeVideo
+	s.mu.Unlock()
+
 	log.Printf("[sfu] add-source-to-subscriber subscriber_id=%s source_participant_id=%s kind=%s", subscriber.ParticipantID, source.ParticipantID, source.Kind)
 	go s.drainSenderRTCP(subscriber.ParticipantID, source, sender)
-	if source.Remote != nil && source.Remote.Kind() == webrtc.RTPCodecTypeVideo {
+	if isVideo {
 		s.requestKeyframe(source.ParticipantID, source)
 	}
 	return nil
