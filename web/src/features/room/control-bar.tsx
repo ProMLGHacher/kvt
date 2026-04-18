@@ -10,6 +10,7 @@ interface ControlBarProps {
   onCameraToggle: () => void
   onScreenToggle: () => void
   onCopyLink: () => void
+  onLeave: () => void
 }
 
 export function ControlBar({
@@ -19,7 +20,8 @@ export function ControlBar({
   onMicToggle,
   onCameraToggle,
   onScreenToggle,
-  onCopyLink
+  onCopyLink,
+  onLeave
 }: ControlBarProps) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 rounded-[28px] border border-border/60 bg-card/90 p-3 shadow-xl backdrop-blur">
@@ -36,7 +38,7 @@ export function ControlBar({
         <Copy className="mr-2 h-4 w-4" />
         Copy link
       </Button>
-      <Button variant="ghost" className="rounded-2xl text-destructive">
+      <Button type="button" variant="ghost" className="rounded-2xl text-destructive" onClick={onLeave}>
         <PhoneOff className="mr-2 h-4 w-4" />
         Leave
       </Button>

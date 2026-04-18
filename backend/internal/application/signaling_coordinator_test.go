@@ -168,3 +168,92 @@ func TestHandleMediaSlotUpdatedPersistsRoomStateAndBroadcastsSnapshot(t *testing
 		t.Fatalf("expected guest snapshot to reflect muted host audio slot")
 	}
 }
+
+func TestOnDisconnectedRemovesParticipantAndBroadcastsUpdatedSnapshot(t *testing.T) {
+	roomRepo := repository.NewInMemoryRoomRepository()
+	sessionRepo := repository.NewInMemorySessionRepository()
+	lookup := repository.NewSessionLookup(roomRepo, sessionRepo)
+	emitter := newStubEmitter()
+	media := &stubMediaBridge{}
+	coordinator := NewSignalingCoordinator(roomRepo, sessionRepo, emitter, lookup, media)
+
+	now := time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)
+	host := domain.NewParticipant("host-1", "Host", domain.RoleHost, now, domain.JoinPreferences{MicEnabled: true})
+	room := domain.NewRoom("room-1", now, host)
+	guest := domain.NewParticipant("guest-1", "Guest", domain.RoleParticipant, now, domain.JoinPreferences{MicEnabled: true})
+	if err := room.AddParticipant(guest); err != nil {
+		t.Fatalf("expected guest add to succeed, got %v", err)
+	}
+	if err := roomRepo.Save(context.Background(), room); err != nil {
+		t.Fatalf("expected room save to succeed, got %v", err)
+	}
+	if err := sessionRepo.Save(context.Background(), &domain.PeerSession{ID: "session-host", RoomID: room.ID, ParticipantID: host.ID}); err != nil {
+		t.Fatalf("expected host session save to succeed, got %v", err)
+	}
+	if err := sessionRepo.Save(context.Background(), &domain.PeerSession{ID: "session-guest", RoomID: room.ID, ParticipantID: guest.ID}); err != nil {
+		t.Fatalf("expected guest session save to succeed, got %v", err)
+	}
+
+	if err := coordinator.OnDisconnected(context.Background(), "session-guest"); err != nil {
+		t.Fatalf("expected OnDisconnected to succeed, got %v", err)
+	}
+
+	updatedRoom, err := roomRepo.FindByID(context.Background(), room.ID)
+	if err != nil {
+		t.Fatalf("expected room reload to succeed, got %v", err)
+	}
+	if len(updatedRoom.Participants) != 1 {
+		t.Fatalf("expected guest participant to be removed, got %d participants", len(updatedRoom.Participants))
+	}
+
+	hostMessages := emitter.messages["session-host"]
+	if len(hostMessages) != 1 {
+		t.Fatalf("expected host to receive one updated snapshot, got %d messages", len(hostMessages))
+	}
+
+	var payload protocol.RoomSnapshotPayload
+	if err := json.Unmarshal(hostMessages[0].Payload, &payload); err != nil {
+		t.Fatalf("expected snapshot payload to unmarshal, got %v", err)
+	}
+	if len(payload.Snapshot.Participants) != 1 || payload.Snapshot.Participants[0].ID != host.ID {
+		t.Fatalf("expected broadcast snapshot to contain only host after guest disconnect")
+	}
+}
+
+func TestHandleParticipantLeftRunsDisconnectCleanupImmediately(t *testing.T) {
+	roomRepo := repository.NewInMemoryRoomRepository()
+	sessionRepo := repository.NewInMemorySessionRepository()
+	lookup := repository.NewSessionLookup(roomRepo, sessionRepo)
+	emitter := newStubEmitter()
+	media := &stubMediaBridge{}
+	coordinator := NewSignalingCoordinator(roomRepo, sessionRepo, emitter, lookup, media)
+
+	now := time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)
+	host := domain.NewParticipant("host-1", "Host", domain.RoleHost, now, domain.JoinPreferences{MicEnabled: true})
+	room := domain.NewRoom("room-1", now, host)
+	guest := domain.NewParticipant("guest-1", "Guest", domain.RoleParticipant, now, domain.JoinPreferences{MicEnabled: true})
+	if err := room.AddParticipant(guest); err != nil {
+		t.Fatalf("expected guest add to succeed, got %v", err)
+	}
+	if err := roomRepo.Save(context.Background(), room); err != nil {
+		t.Fatalf("expected room save to succeed, got %v", err)
+	}
+	if err := sessionRepo.Save(context.Background(), &domain.PeerSession{ID: "session-host", RoomID: room.ID, ParticipantID: host.ID}); err != nil {
+		t.Fatalf("expected host session save to succeed, got %v", err)
+	}
+	if err := sessionRepo.Save(context.Background(), &domain.PeerSession{ID: "session-guest", RoomID: room.ID, ParticipantID: guest.ID}); err != nil {
+		t.Fatalf("expected guest session save to succeed, got %v", err)
+	}
+
+	if err := coordinator.HandleEnvelope(context.Background(), "session-guest", protocol.MustEnvelope(protocol.TypeParticipantLeft, map[string]string{})); err != nil {
+		t.Fatalf("expected participant.left handling to succeed, got %v", err)
+	}
+
+	updatedRoom, err := roomRepo.FindByID(context.Background(), room.ID)
+	if err != nil {
+		t.Fatalf("expected room reload to succeed, got %v", err)
+	}
+	if len(updatedRoom.Participants) != 1 {
+		t.Fatalf("expected participant.left to remove guest immediately, got %d participants", len(updatedRoom.Participants))
+	}
+}

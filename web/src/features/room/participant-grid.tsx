@@ -16,6 +16,7 @@ export function ParticipantGrid({ participants, localParticipantId, streams }: P
         const audioSlot = participant.slots.find((slot) => slot.kind === 'audio')
         const screenSlot = participant.slots.find((slot) => slot.kind === 'screen')
         const showVideo = Boolean(stream) && (cameraSlot?.enabled || screenSlot?.enabled)
+        const awaitingMedia = !stream && (audioSlot?.enabled || cameraSlot?.enabled || screenSlot?.enabled)
 
         return (
           <article key={participant.id} className="overflow-hidden rounded-[28px] border border-border/60 bg-card/90 shadow-sm">
@@ -35,12 +36,14 @@ export function ParticipantGrid({ participants, localParticipantId, streams }: P
               ) : (
                 <div className="text-center text-sm text-slate-300">
                   <p className="font-medium">{participant.displayName}</p>
-                  <p>{screenSlot?.enabled ? 'Screen share ready' : 'Camera is off'}</p>
+                  <p>{screenSlot?.enabled ? 'Screen share ready' : cameraSlot?.enabled ? 'Camera signal is on, waiting for media…' : 'Camera is off'}</p>
+                  {awaitingMedia ? <p className="mt-2 text-xs text-slate-400">Participant is present, but remote media has not attached yet.</p> : null}
                 </div>
               )}
               {audioSlot?.enabled && stream ? (
                 <audio
                   autoPlay
+                  muted={participant.id === localParticipantId}
                   ref={(node) => {
                     if (node) {
                       node.srcObject = stream
@@ -58,6 +61,7 @@ export function ParticipantGrid({ participants, localParticipantId, streams }: P
                 <Badge>{audioSlot?.enabled ? 'Mic live' : 'Muted'}</Badge>
                 <Badge>{cameraSlot?.enabled ? 'Camera on' : 'Camera off'}</Badge>
                 {screenSlot?.enabled ? <Badge className="bg-accent text-accent-foreground">Screen</Badge> : null}
+                {awaitingMedia ? <Badge className="bg-amber-100 text-amber-900">Waiting for media</Badge> : null}
               </div>
             </div>
           </article>

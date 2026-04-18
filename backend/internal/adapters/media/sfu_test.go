@@ -123,7 +123,7 @@ func TestAttachExistingSourcesEmitsSubscriberOffer(t *testing.T) {
 	}
 }
 
-func TestUpdateSlotPreferenceDisablesExistingSource(t *testing.T) {
+func TestUpdateSlotPreferenceKeepsExistingVideoSourceWhenCameraTurnsOff(t *testing.T) {
 	api := newTestAPI()
 	sfu := NewSFU(api, newStubEmitter(), stubLookup{})
 
@@ -142,8 +142,8 @@ func TestUpdateSlotPreferenceDisablesExistingSource(t *testing.T) {
 		t.Fatalf("expected disable slot to succeed, got %v", err)
 	}
 
-	if _, exists := sfu.sources[participantSlotKey{ParticipantID: "participant-1", Kind: domain.SlotCamera}]; exists {
-		t.Fatalf("expected source to be removed after disable")
+	if _, exists := sfu.sources[participantSlotKey{ParticipantID: "participant-1", Kind: domain.SlotCamera}]; !exists {
+		t.Fatalf("expected reserved camera source to stay published for later resume")
 	}
 }
 

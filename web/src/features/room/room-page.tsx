@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { ConferenceClient } from '@/lib/rtc/conference-client'
-import { loadJoinSession } from '@/features/session/session-storage'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ConferenceClient, type ConferenceDiagnostics } from '@/lib/rtc/conference-client'
+import { clearJoinSession, loadJoinSession } from '@/features/session/session-storage'
 import type { ParticipantState, RoomSnapshot, SlotKind, SlotUpdatedPayload } from '@/features/protocol/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,11 +12,15 @@ type ParticipantMap = Record<string, ParticipantState>
 
 export function RoomPage() {
   const { roomId = '' } = useParams()
+  const navigate = useNavigate()
   const joinSession = useMemo(() => loadJoinSession(roomId), [roomId])
   const clientRef = useRef<ConferenceClient | null>(null)
   const [participants, setParticipants] = useState<ParticipantMap>(() => indexParticipants(joinSession?.snapshot))
   const [streams, setStreams] = useState<Record<string, MediaStream>>({})
   const [connectionState, setConnectionState] = useState('idle')
+  const [diagnostics, setDiagnostics] = useState<ConferenceDiagnostics | null>(null)
+  const [roomError, setRoomError] = useState<string | null>(null)
+  const [actionStatus, setActionStatus] = useState('Waiting for room session to start.')
   const [micEnabled, setMicEnabled] = useState(joinSession?.snapshot.participants.find((participant) => participant.id === joinSession.participantId)?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true)
   const [cameraEnabled, setCameraEnabled] = useState(joinSession?.snapshot.participants.find((participant) => participant.id === joinSession.participantId)?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false)
   const [screenEnabled, setScreenEnabled] = useState(false)
@@ -27,28 +31,54 @@ export function RoomPage() {
     }
 
     const client = new ConferenceClient({
-      onSnapshot: (snapshot) => setParticipants(indexParticipants(snapshot)),
+      onSnapshot: (snapshot) => {
+        setParticipants(indexParticipants(snapshot))
+        setStreams((current) => {
+          const activeParticipantIds = new Set(snapshot.participants.map((participant) => participant.id))
+          return Object.fromEntries(Object.entries(current).filter(([participantId]) => activeParticipantIds.has(participantId)))
+        })
+      },
       onSlotUpdated: (payload) => setParticipants((current) => patchParticipantSlot(current, payload)),
       onRemoteTrack: (participantId, _kind, stream) => {
         setStreams((current) => ({ ...current, [participantId]: stream }))
       },
-      onStateChange: setConnectionState
+      onLocalStream: (stream) => {
+        setStreams((current) => {
+          if (!stream) {
+            const { [joinSession.participantId]: _removed, ...rest } = current
+            return rest
+          }
+
+          return {
+            ...current,
+            [joinSession.participantId]: stream
+          }
+        })
+      },
+      onStateChange: setConnectionState,
+      onDiagnostics: setDiagnostics,
+      onError: (message) => setRoomError(message)
     })
 
     clientRef.current = client
+    setActionStatus('Connecting signaling and media…')
     void client.start({
       wsUrl: joinSession.wsUrl,
       iceServers: joinSession.iceServers,
       micEnabled,
       cameraEnabled
+    }).then(() => {
+      setActionStatus('Room session is live.')
+    }).catch((error) => {
+      setConnectionState('error')
+      setRoomError(readableError(error))
+      setActionStatus('Room session failed to start.')
     })
 
     return () => {
       client.close()
     }
   }, [joinSession])
-
-  const participantList = useMemo(() => Object.values(participants), [participants])
 
   if (!joinSession) {
     return (
@@ -65,52 +95,94 @@ export function RoomPage() {
 
   const activeSession = joinSession
   const localParticipant = participants[activeSession.participantId]
+  const secureContext = window.isSecureContext
+  const participantList = useMemo(() => Object.values(participants), [participants])
+  const otherParticipants = participantList.filter((participant) => participant.id !== activeSession.participantId)
+  const participantNames = participantList.map((participant) => participant.displayName).join(', ')
+  const visibleRemoteStreams = otherParticipants.filter((participant) => Boolean(streams[participant.id])).length
 
   async function handleMicToggle() {
     const next = !micEnabled
-    setMicEnabled(next)
-    await clientRef.current?.setMicEnabled(next)
-    if (localParticipant) {
-      setParticipants((current) => patchParticipantSlot(current, {
-        participantId: activeSession.participantId,
-        kind: 'audio',
-        enabled: next,
-        publishing: next,
-        trackBound: true
-      }))
+    setRoomError(null)
+    setActionStatus(next ? 'Turning microphone on…' : 'Muting microphone…')
+    try {
+      await clientRef.current?.setMicEnabled(next)
+      setMicEnabled(next)
+      if (localParticipant) {
+        setParticipants((current) => patchParticipantSlot(current, {
+          participantId: activeSession.participantId,
+          kind: 'audio',
+          enabled: next,
+          publishing: next,
+          trackBound: true
+        }))
+      }
+      setActionStatus(next ? 'Microphone is live.' : 'Microphone muted.')
+    } catch (error) {
+      setRoomError(readableError(error))
+      setActionStatus('Microphone toggle failed.')
     }
   }
 
   async function handleCameraToggle() {
     const next = !cameraEnabled
-    setCameraEnabled(next)
-    await clientRef.current?.setCameraEnabled(next)
-    setParticipants((current) => patchParticipantSlot(current, {
-      participantId: activeSession.participantId,
-      kind: 'camera',
-      enabled: next,
-      publishing: next,
-      trackBound: next
-    }))
+    setRoomError(null)
+    setActionStatus(next ? 'Turning camera on…' : 'Turning camera off…')
+    try {
+      await clientRef.current?.setCameraEnabled(next)
+      setCameraEnabled(next)
+      setParticipants((current) => patchParticipantSlot(current, {
+        participantId: activeSession.participantId,
+        kind: 'camera',
+        enabled: next,
+        publishing: next,
+        trackBound: next
+      }))
+      setActionStatus(next ? 'Camera is live.' : 'Camera is off.')
+    } catch (error) {
+      setRoomError(readableError(error))
+      setActionStatus('Camera toggle failed.')
+    }
   }
 
   async function handleScreenToggle() {
     const next = !screenEnabled
-    setScreenEnabled(next)
-    await clientRef.current?.setScreenEnabled(next)
-    setParticipants((current) => patchParticipantSlot(current, {
-      participantId: activeSession.participantId,
-      kind: 'screen',
-      enabled: next,
-      publishing: next,
-      trackBound: next
-    }))
+    setRoomError(null)
+    setActionStatus(next ? 'Starting screen share…' : 'Stopping screen share…')
+    try {
+      await clientRef.current?.setScreenEnabled(next)
+      setScreenEnabled(next)
+      setParticipants((current) => patchParticipantSlot(current, {
+        participantId: activeSession.participantId,
+        kind: 'screen',
+        enabled: next,
+        publishing: next,
+        trackBound: next
+      }))
+      setActionStatus(next ? 'Screen share is live.' : 'Screen share stopped.')
+    } catch (error) {
+      setRoomError(readableError(error))
+      setActionStatus('Screen share toggle failed.')
+    }
   }
 
   async function handleCopyLink() {
-    const inviteToken = joinSession?.inviteToken
-    const inviteURL = inviteToken ? `${window.location.origin}/invite/${inviteToken}` : window.location.href
-    await navigator.clipboard.writeText(inviteURL)
+    try {
+      const inviteToken = joinSession?.inviteToken
+      const inviteURL = inviteToken ? `${window.location.origin}/invite/${inviteToken}` : window.location.href
+      await navigator.clipboard.writeText(inviteURL)
+      setActionStatus('Invite link copied.')
+    } catch (error) {
+      setRoomError(readableError(error))
+      setActionStatus('Copy link failed.')
+    }
+  }
+
+  function handleLeave() {
+    setActionStatus('Leaving room…')
+    clientRef.current?.close()
+    clearJoinSession(activeSession.roomId)
+    navigate('/')
   }
 
   return (
@@ -126,10 +198,73 @@ export function RoomPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{participantList.length} participants</Badge>
           <Badge>{connectionState}</Badge>
+          <Badge>{visibleRemoteStreams} remote streams</Badge>
         </div>
       </header>
 
-          <ParticipantGrid participants={participantList} localParticipantId={activeSession.participantId} streams={streams} />
+      {!secureContext ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="text-red-700">Media Capture Is Blocked On This Origin</CardTitle>
+            <CardDescription className="text-red-700/80">
+              Open the app on `http://localhost:8023` or over HTTPS if you want microphone, camera, and screen sharing to work in the browser.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>What To Report</CardTitle>
+          <CardDescription>
+            These values are meant for debugging in plain language: tell me what badges you see here if something looks wrong.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <StatusBlock
+            title="Room"
+            lines={[
+              `Origin: ${window.location.origin}`,
+              `Secure context: ${secureContext ? 'yes' : 'no'}`,
+              `Participants in snapshot: ${participantList.length}`,
+              `Other participants: ${otherParticipants.length}`,
+              `Participants list: ${participantNames || 'none'}`,
+              `Action status: ${actionStatus}`
+            ]}
+          />
+          <StatusBlock
+            title="Publisher"
+            lines={[
+              `Signaling: ${diagnostics?.publisher.signalingState ?? 'unknown'}`,
+              `Connection: ${diagnostics?.publisher.connectionState ?? 'unknown'}`,
+              `ICE: ${diagnostics?.publisher.iceConnectionState ?? 'unknown'}`,
+              `Mic track: ${diagnostics?.local.micTrack ? 'ready' : 'missing'}`,
+              `Camera track: ${diagnostics?.local.cameraTrack ? 'ready' : 'missing'}`,
+              `Screen track: ${diagnostics?.local.screenTrack ? 'ready' : 'missing'}`
+            ]}
+          />
+          <StatusBlock
+            title="Subscriber"
+            lines={[
+              `Socket: ${diagnostics?.signalingState ?? 'unknown'}`,
+              `Signaling: ${diagnostics?.subscriber.signalingState ?? 'unknown'}`,
+              `Connection: ${diagnostics?.subscriber.connectionState ?? 'unknown'}`,
+              `ICE: ${diagnostics?.subscriber.iceConnectionState ?? 'unknown'}`,
+              `Remote streams: ${visibleRemoteStreams}`
+            ]}
+          />
+          <StatusBlock
+            title="Signals"
+            lines={[
+              `Sent: ${joinSignals(diagnostics?.recentSignalsSent)}`,
+              `Received: ${joinSignals(diagnostics?.recentSignalsReceived)}`,
+              `Last error: ${roomError ?? diagnostics?.lastError ?? 'none'}`
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <ParticipantGrid participants={participantList} localParticipantId={activeSession.participantId} streams={streams} />
 
       <div className="sticky bottom-4 flex justify-center">
         <ControlBar
@@ -140,9 +275,38 @@ export function RoomPage() {
           onCameraToggle={handleCameraToggle}
           onScreenToggle={handleScreenToggle}
           onCopyLink={handleCopyLink}
+          onLeave={handleLeave}
         />
       </div>
     </main>
+  )
+}
+
+function joinSignals(items?: string[]) {
+  if (!items || items.length === 0) {
+    return 'none'
+  }
+
+  return items.join(', ')
+}
+
+function readableError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  return String(error)
+}
+
+function StatusBlock({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <section className="rounded-2xl border border-border/60 bg-muted/30 p-4">
+      <h3 className="font-medium">{title}</h3>
+      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+    </section>
   )
 }
 

@@ -180,12 +180,9 @@ func (s *SFU) UpdateSlotPreference(participantID string, kind domain.SlotKind, e
 	peer.DesiredSlots[kind] = enabled
 	s.mu.Unlock()
 
-	// Audio stays on the same sender/transceiver and is muted via track.enabled.
-	// Only camera and screen slot disables should unpublish and trigger subscriber renegotiation.
-	if kind != domain.SlotAudio && !enabled {
-		return s.unpublish(participantID, kind)
-	}
-
+	// Voice and video slots stay reserved even while a track is temporarily removed.
+	// That lets the same publisher/subscriber graph recover on resume without rebuilding
+	// downstream subscriber senders or forcing a new remote slot identity.
 	return nil
 }
 

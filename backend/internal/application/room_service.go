@@ -50,6 +50,10 @@ func NewRoomService(
 }
 
 func (s *RoomService) CreateRoom(ctx context.Context) (CreateRoomResult, error) {
+	return s.CreateRoomForBaseURL(ctx, nil)
+}
+
+func (s *RoomService) CreateRoomForBaseURL(ctx context.Context, baseURL *url.URL) (CreateRoomResult, error) {
 	roomID := s.ids.NewID()
 	now := s.clock.Now()
 	host := domain.NewParticipant(s.ids.NewID(), "Host", domain.RoleHost, now, domain.JoinPreferences{})
@@ -73,12 +77,16 @@ func (s *RoomService) CreateRoom(ctx context.Context) (CreateRoomResult, error) 
 		RoomID:                 roomID,
 		HostInviteToken:        hostToken,
 		ParticipantInviteToken: participantToken,
-		HostInviteURL:          s.buildInviteURL(hostToken),
-		ParticipantInviteURL:   s.buildInviteURL(participantToken),
+		HostInviteURL:          s.buildInviteURL(baseURL, hostToken),
+		ParticipantInviteURL:   s.buildInviteURL(baseURL, participantToken),
 	}, nil
 }
 
 func (s *RoomService) JoinRoom(ctx context.Context, token string, prefs PrejoinPreferences) (JoinResult, error) {
+	return s.JoinRoomForBaseURL(ctx, token, prefs, nil)
+}
+
+func (s *RoomService) JoinRoomForBaseURL(ctx context.Context, token string, prefs PrejoinPreferences, baseURL *url.URL) (JoinResult, error) {
 	claims, err := s.invites.ParseToken(token)
 	if err != nil {
 		return JoinResult{}, err
@@ -144,7 +152,7 @@ func (s *RoomService) JoinRoom(ctx context.Context, token string, prefs PrejoinP
 		ParticipantID: participant.ID,
 		RoomID:        room.ID,
 		Role:          participant.Role,
-		WSURL:         s.buildWSURL(session.ID),
+		WSURL:         s.buildWSURL(baseURL, session.ID),
 		ICEServers:    s.iceServers,
 		Snapshot:      room.Snapshot(),
 	}, nil
@@ -154,14 +162,14 @@ func (s *RoomService) GetInviteMetadata(token string) (InviteClaims, error) {
 	return s.invites.ParseToken(token)
 }
 
-func (s *RoomService) buildInviteURL(token string) string {
-	u := *s.baseURL
+func (s *RoomService) buildInviteURL(baseURL *url.URL, token string) string {
+	u := *s.resolveBaseURL(baseURL)
 	u.Path = fmt.Sprintf("/invite/%s", token)
 	return u.String()
 }
 
-func (s *RoomService) buildWSURL(sessionID string) string {
-	u := *s.baseURL
+func (s *RoomService) buildWSURL(baseURL *url.URL, sessionID string) string {
+	u := *s.resolveBaseURL(baseURL)
 	if u.Scheme == "https" {
 		u.Scheme = "wss"
 	} else {
@@ -172,4 +180,12 @@ func (s *RoomService) buildWSURL(sessionID string) string {
 	query.Set("sessionId", sessionID)
 	u.RawQuery = query.Encode()
 	return u.String()
+}
+
+func (s *RoomService) resolveBaseURL(baseURL *url.URL) *url.URL {
+	if baseURL != nil {
+		return baseURL
+	}
+
+	return s.baseURL
 }

@@ -71,6 +71,13 @@ func (r *InMemorySessionRepository) FindByID(_ context.Context, sessionID string
 	return session, nil
 }
 
+func (r *InMemorySessionRepository) Delete(_ context.Context, sessionID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.sessions, sessionID)
+	return nil
+}
+
 type FixedClock struct {
 	now time.Time
 }

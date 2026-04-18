@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/araik/codex-webrtc/project/backend/internal/adapters/signaling"
@@ -50,7 +51,7 @@ func (s *Server) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := s.roomService.CreateRoom(r.Context())
+	result, err := s.roomService.CreateRoomForBaseURL(r.Context(), requestBaseURL(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -84,7 +85,7 @@ func (s *Server) handleInviteRoutes(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
-		result, err := s.roomService.JoinRoom(r.Context(), token, prefs)
+		result, err := s.roomService.JoinRoomForBaseURL(r.Context(), token, prefs, requestBaseURL(r))
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, application.ErrRoomNotFound) {
@@ -114,6 +115,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	s.hub.Register(sessionID, conn)
 	defer func() {
 		s.hub.Unregister(sessionID)
+		_ = s.coordinator.OnDisconnected(context.Background(), sessionID)
 		_ = conn.Close()
 	}()
 
@@ -148,4 +150,23 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
+}
+
+func requestBaseURL(r *http.Request) *url.URL {
+	scheme := "http"
+	if forwardedProto := r.Header.Get("X-Forwarded-Proto"); forwardedProto != "" {
+		scheme = forwardedProto
+	} else if r.TLS != nil {
+		scheme = "https"
+	}
+
+	host := r.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = r.Host
+	}
+
+	return &url.URL{
+		Scheme: scheme,
+		Host:   host,
+	}
 }

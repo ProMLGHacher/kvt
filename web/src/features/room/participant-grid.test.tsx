@@ -28,4 +28,31 @@ describe('ParticipantGrid', () => {
     expect(container.querySelector('video')).not.toBeNull()
     expect(queryByText(/screen share ready/i)).toBeNull()
   })
+
+  it('mutes the local participant audio preview', () => {
+    const participants: ParticipantState[] = [
+      {
+        id: 'participant-1',
+        displayName: 'Local Host',
+        role: 'host',
+        slots: [
+          { kind: 'audio', enabled: true, publishing: true, trackBound: true, revision: 1 },
+          { kind: 'camera', enabled: true, publishing: true, trackBound: true, revision: 1 },
+          { kind: 'screen', enabled: false, publishing: false, trackBound: false, revision: 1 }
+        ]
+      }
+    ]
+
+    const { container } = render(
+      <ParticipantGrid
+        participants={participants}
+        localParticipantId="participant-1"
+        streams={{ 'participant-1': {} as MediaStream }}
+      />
+    )
+
+    const audio = container.querySelector('audio')
+    expect(audio).not.toBeNull()
+    expect(audio?.muted).toBe(true)
+  })
 })

@@ -1,10 +1,38 @@
-import { render } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { screen } from '@testing-library/dom'
 import userEvent from '@testing-library/user-event'
-import { vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 import { PrejoinModal } from '@/features/prejoin/prejoin-modal'
 
 describe('PrejoinModal', () => {
+  const getUserMediaMock = vi.fn()
+  const originalIsSecureContext = window.isSecureContext
+
+  beforeEach(() => {
+    getUserMediaMock.mockReset().mockResolvedValue({
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [{ stop: vi.fn() }],
+      getAudioTracks: () => []
+    })
+    Object.defineProperty(window.navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: getUserMediaMock
+      }
+    })
+    Object.defineProperty(window, 'isSecureContext', {
+      configurable: true,
+      value: true
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'isSecureContext', {
+      configurable: true,
+      value: originalIsSecureContext
+    })
+  })
+
   it('submits the selected prejoin preferences', async () => {
     const onJoin = vi.fn()
     render(<PrejoinModal open onJoin={onJoin} />)
@@ -18,6 +46,20 @@ describe('PrejoinModal', () => {
       displayName: 'Araik',
       micEnabled: false,
       cameraEnabled: false
+    })
+  })
+
+  it('requests preview media when camera preview is enabled', async () => {
+    render(<PrejoinModal open onJoin={vi.fn()} />)
+
+    const switches = screen.getAllByRole('switch')
+    await userEvent.click(switches[1])
+
+    await waitFor(() => {
+      expect(getUserMediaMock).toHaveBeenCalledWith({
+        audio: true,
+        video: true
+      })
     })
   })
 })

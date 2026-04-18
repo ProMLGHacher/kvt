@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, Mic, UserRound, Video } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
@@ -15,6 +16,11 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
   const [displayName, setDisplayName] = useState('')
   const [micEnabled, setMicEnabled] = useState(true)
   const [cameraEnabled, setCameraEnabled] = useState(false)
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null)
+  const [previewStatus, setPreviewStatus] = useState('Microphone is ready. Camera starts off.')
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   const previewLabel = useMemo(() => {
     if (cameraEnabled && micEnabled) {
@@ -25,6 +31,79 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
     }
     return 'Audio-first entry. Camera can be added later without dropping voice.'
   }, [cameraEnabled, micEnabled])
+
+  useEffect(() => {
+    if (!videoRef.current) {
+      return
+    }
+
+    videoRef.current.srcObject = previewStream
+  }, [previewStream])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function syncPreview() {
+      stopPreview(streamRef.current)
+      streamRef.current = null
+      setPreviewStream(null)
+      setPreviewError(null)
+
+      if (!open) {
+        return
+      }
+
+      if (!micEnabled && !cameraEnabled) {
+        setPreviewStatus('Microphone and camera are both off. You can still join muted and add them later.')
+        return
+      }
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setPreviewStatus('Preview unavailable in this browser.')
+        setPreviewError('Media devices API is unavailable in this browser.')
+        return
+      }
+
+      if (!window.isSecureContext) {
+        setPreviewStatus('Preview unavailable on this origin.')
+        setPreviewError('Open this page on localhost or HTTPS to use microphone and camera.')
+        return
+      }
+
+      setPreviewStatus('Requesting microphone and camera access…')
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: micEnabled,
+          video: cameraEnabled
+        })
+
+        if (cancelled) {
+          stopPreview(stream)
+          return
+        }
+
+        streamRef.current = stream
+        setPreviewStream(stream)
+        setPreviewStatus(describePreview(stream, micEnabled, cameraEnabled))
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+
+        setPreviewStatus('Preview unavailable.')
+        setPreviewError(describeMediaError(error))
+      }
+    }
+
+    void syncPreview()
+
+    return () => {
+      cancelled = true
+      stopPreview(streamRef.current)
+      streamRef.current = null
+    }
+  }, [open, micEnabled, cameraEnabled])
 
   return (
     <Modal
@@ -42,12 +121,31 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
     >
       <div className="grid gap-6 md:grid-cols-[1.2fr,0.8fr]">
         <div className="overflow-hidden rounded-[24px] border border-border/60 bg-slate-950 p-4 text-slate-50">
-          <div className="flex h-64 items-center justify-center rounded-[18px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.24),_transparent_42%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(2,6,23,0.98))]">
-            <div className="text-center">
-              <Video className="mx-auto mb-3 h-10 w-10 text-emerald-300" />
-              <p className="max-w-xs text-sm text-slate-200">{previewLabel}</p>
-            </div>
+          <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.24),_transparent_42%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(2,6,23,0.98))]">
+            {previewStream && cameraEnabled ? (
+              <video ref={videoRef} autoPlay muted playsInline className="h-64 w-full object-cover" />
+            ) : (
+              <div className="flex h-64 items-center justify-center">
+                <div className="text-center">
+                  <Video className="mx-auto mb-3 h-10 w-10 text-emerald-300" />
+                  <p className="max-w-xs text-sm text-slate-200">{previewLabel}</p>
+                </div>
+              </div>
+            )}
           </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge className={window.isSecureContext ? 'bg-emerald-500/20 text-emerald-100' : 'bg-red-500/20 text-red-100'}>
+              {window.isSecureContext ? 'Secure context' : 'Open on localhost or HTTPS'}
+            </Badge>
+            <Badge className={micEnabled ? 'bg-emerald-500/20 text-emerald-100' : 'bg-slate-500/30 text-slate-200'}>
+              {micEnabled ? 'Mic requested' : 'Mic off'}
+            </Badge>
+            <Badge className={cameraEnabled ? 'bg-emerald-500/20 text-emerald-100' : 'bg-slate-500/30 text-slate-200'}>
+              {cameraEnabled ? 'Camera preview requested' : 'Camera off'}
+            </Badge>
+          </div>
+          <p className="mt-3 text-sm text-slate-200">{previewStatus}</p>
+          {previewError ? <p className="mt-2 text-sm text-rose-200">{previewError}</p> : null}
         </div>
 
         <div className="space-y-5">
@@ -84,6 +182,45 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
       </div>
     </Modal>
   )
+}
+
+function stopPreview(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop())
+}
+
+function describePreview(stream: MediaStream, micEnabled: boolean, cameraEnabled: boolean) {
+  const hasVideo = stream.getVideoTracks().length > 0
+  const hasAudio = stream.getAudioTracks().length > 0
+
+  if (hasVideo && hasAudio && micEnabled && cameraEnabled) {
+    return 'Camera preview is live and microphone access is ready.'
+  }
+  if (hasVideo && cameraEnabled) {
+    return 'Camera preview is live. Microphone starts muted.'
+  }
+  if (hasAudio && micEnabled) {
+    return 'Microphone access is ready. Camera starts off.'
+  }
+
+  return 'Preview is ready.'
+}
+
+function describeMediaError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return 'Unable to access selected media devices.'
+  }
+
+  if (error.name === 'NotAllowedError') {
+    return 'Browser access to microphone or camera was denied.'
+  }
+  if (error.name === 'NotFoundError') {
+    return 'No matching microphone or camera was found.'
+  }
+  if (error.name === 'NotReadableError') {
+    return 'Microphone or camera is busy in another app.'
+  }
+
+  return error.message || 'Unable to access selected media devices.'
 }
 
 function ToggleRow({

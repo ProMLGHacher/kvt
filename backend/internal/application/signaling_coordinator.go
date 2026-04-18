@@ -80,6 +80,31 @@ func (c *SignalingCoordinator) OnConnected(ctx context.Context, sessionID string
 	return c.broadcastRoomSnapshot(ctx, room.ID)
 }
 
+func (c *SignalingCoordinator) OnDisconnected(ctx context.Context, sessionID string) error {
+	session, err := c.sessions.FindByID(ctx, sessionID)
+	if err != nil {
+		return nil
+	}
+
+	room, err := c.rooms.FindByID(ctx, session.RoomID)
+	if err != nil {
+		_ = c.sessions.Delete(ctx, sessionID)
+		return nil
+	}
+
+	if err := room.RemoveParticipant(session.ParticipantID); err != nil && !errors.Is(err, domain.ErrParticipantNotFound) {
+		return err
+	}
+	if err := c.rooms.Save(ctx, room); err != nil {
+		return err
+	}
+	if err := c.sessions.Delete(ctx, sessionID); err != nil {
+		return err
+	}
+
+	return c.broadcastRoomSnapshot(ctx, room.ID)
+}
+
 func (c *SignalingCoordinator) HandleEnvelope(ctx context.Context, sessionID string, envelope protocol.Envelope) error {
 	session, err := c.sessions.FindByID(ctx, sessionID)
 	if err != nil {
@@ -87,6 +112,8 @@ func (c *SignalingCoordinator) HandleEnvelope(ctx context.Context, sessionID str
 	}
 
 	switch envelope.Type {
+	case protocol.TypeParticipantLeft:
+		return c.OnDisconnected(ctx, sessionID)
 	case protocol.TypePublisherOffer:
 		var payload protocol.SessionDescriptionPayload
 		if err := json.Unmarshal(envelope.Payload, &payload); err != nil {

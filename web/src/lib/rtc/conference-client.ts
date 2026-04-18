@@ -1,4 +1,4 @@
-import { SignalingClient } from '@/lib/signaling'
+import { SignalingClient, type SignalingState } from '@/lib/signaling'
 import type {
   CandidatePayload,
   ICEServerConfig,
@@ -7,18 +7,42 @@ import type {
   RoomSnapshotPayload,
   SessionDescriptionPayload,
   SignalEnvelope,
-  SignalPeer,
   SlotKind,
   SlotUpdatedPayload
 } from '@/features/protocol/types'
 
 type LocalPeerKind = 'publisher' | 'subscriber'
 
+export interface PeerDiagnostics {
+  signalingState: string
+  connectionState: string
+  iceConnectionState: string
+}
+
+export interface ConferenceDiagnostics {
+  signalingState: SignalingState
+  publisher: PeerDiagnostics
+  subscriber: PeerDiagnostics
+  local: {
+    micEnabled: boolean
+    micTrack: boolean
+    cameraTrack: boolean
+    screenTrack: boolean
+  }
+  remoteStreams: number
+  recentSignalsSent: string[]
+  recentSignalsReceived: string[]
+  lastError: string | null
+}
+
 type ConferenceEvents = {
   onSnapshot: (snapshot: RoomSnapshot) => void
   onSlotUpdated: (payload: SlotUpdatedPayload) => void
   onRemoteTrack: (participantId: string, kind: SlotKind, stream: MediaStream) => void
+  onLocalStream?: (stream: MediaStream | null) => void
   onStateChange: (state: string) => void
+  onDiagnostics?: (diagnostics: ConferenceDiagnostics) => void
+  onError?: (message: string) => void
 }
 
 type StartOptions = {
@@ -38,100 +62,149 @@ export class ConferenceClient {
   private localAudioTrack: MediaStreamTrack | null = null
   private localCameraTrack: MediaStreamTrack | null = null
   private localScreenTrack: MediaStreamTrack | null = null
+  private localPreviewStream: MediaStream | null = null
   private remoteStreams = new Map<string, MediaStream>()
   private makingPublisherOffer = false
   private allowPublisherNegotiation = false
   private pendingPublisherCandidates: RTCIceCandidateInit[] = []
   private pendingSubscriberCandidates: RTCIceCandidateInit[] = []
+  private signalingState: SignalingState = 'idle'
+  private recentSignalsSent: string[] = []
+  private recentSignalsReceived: string[] = []
+  private lastError: string | null = null
 
   constructor(private events: ConferenceEvents) {}
 
   async start(options: StartOptions) {
-    this.events.onStateChange('connecting')
-    await this.signaling.connect(options.wsUrl)
-    this.signaling.subscribe((message) => {
-      void this.handleSignalMessage(message)
-    })
+    try {
+      this.events.onStateChange('connecting')
+      this.signaling.subscribeState((state) => {
+        this.signalingState = state
+        this.emitDiagnostics()
+      })
+      await this.signaling.connect(options.wsUrl)
+      this.signaling.subscribe((message) => {
+        void this.handleSignalMessage(message).catch((error) => {
+          this.captureError(error)
+        })
+      })
 
-    this.publisherPc = this.createPeerConnection(options.iceServers, 'publisher')
-    this.subscriberPc = this.createPeerConnection(options.iceServers, 'subscriber')
-    this.reservePublisherSlots()
+      this.publisherPc = this.createPeerConnection(options.iceServers, 'publisher')
+      this.subscriberPc = this.createPeerConnection(options.iceServers, 'subscriber')
+      this.reservePublisherSlots()
+      this.emitDiagnostics()
 
-    await this.setMicEnabled(options.micEnabled)
-    await this.setCameraEnabled(options.cameraEnabled)
-    this.allowPublisherNegotiation = true
-    await this.negotiatePublisher()
+      await this.setMicEnabled(options.micEnabled)
+      await this.setCameraEnabled(options.cameraEnabled)
+      this.allowPublisherNegotiation = true
+      await this.negotiatePublisher()
+    } catch (error) {
+      this.captureError(error)
+      throw error
+    }
   }
 
   async setMicEnabled(enabled: boolean) {
-    if (!this.publisherPc || !this.audioTransceiver) {
-      return
-    }
+    try {
+      if (!this.publisherPc || !this.audioTransceiver) {
+        return
+      }
 
-    if (!this.localAudioTrack) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      this.localAudioTrack = stream.getAudioTracks()[0] ?? null
-      await this.audioTransceiver.sender.replaceTrack(this.localAudioTrack)
-    }
+      if (!this.localAudioTrack) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        this.localAudioTrack = stream.getAudioTracks()[0] ?? null
+        await this.audioTransceiver.sender.replaceTrack(this.localAudioTrack)
+      }
 
-    if (this.localAudioTrack) {
-      this.localAudioTrack.enabled = enabled
-    }
+      if (this.localAudioTrack) {
+        this.localAudioTrack.enabled = enabled
+      }
 
-    this.sendSlotUpdate('audio', enabled, enabled, Boolean(this.localAudioTrack))
+      this.publishLocalStream()
+      this.sendSlotUpdate('audio', enabled, enabled, Boolean(this.localAudioTrack))
+      this.emitDiagnostics()
+    } catch (error) {
+      this.captureError(error)
+      throw error
+    }
   }
 
   async setCameraEnabled(enabled: boolean) {
-    if (!this.cameraTransceiver) {
-      return
-    }
-
-    if (enabled) {
-      if (!this.localCameraTrack) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
-        this.localCameraTrack = stream.getVideoTracks()[0] ?? null
+    try {
+      if (!this.cameraTransceiver) {
+        return
       }
-      await this.cameraTransceiver.sender.replaceTrack(this.localCameraTrack)
-    } else {
-      await this.cameraTransceiver.sender.replaceTrack(null)
-      this.localCameraTrack?.stop()
-      this.localCameraTrack = null
-    }
 
-    this.sendSlotUpdate('camera', enabled, enabled, Boolean(this.localCameraTrack))
+      if (enabled) {
+        if (!this.localCameraTrack) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true })
+          this.localCameraTrack = stream.getVideoTracks()[0] ?? null
+        }
+        await this.cameraTransceiver.sender.replaceTrack(this.localCameraTrack)
+      } else {
+        await this.cameraTransceiver.sender.replaceTrack(null)
+        this.localCameraTrack?.stop()
+        this.localCameraTrack = null
+      }
+
+      this.publishLocalStream()
+      this.sendSlotUpdate('camera', enabled, enabled, Boolean(this.localCameraTrack))
+      this.emitDiagnostics()
+    } catch (error) {
+      this.captureError(error)
+      throw error
+    }
   }
 
   async setScreenEnabled(enabled: boolean) {
-    if (!this.screenTransceiver) {
-      return
-    }
-
-    if (enabled) {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
-      this.localScreenTrack = stream.getVideoTracks()[0] ?? null
-      if (this.localScreenTrack) {
-        this.localScreenTrack.addEventListener('ended', () => {
-          void this.setScreenEnabled(false)
-        })
+    try {
+      if (!this.screenTransceiver) {
+        return
       }
-      await this.screenTransceiver.sender.replaceTrack(this.localScreenTrack)
-    } else {
-      await this.screenTransceiver.sender.replaceTrack(null)
-      this.localScreenTrack?.stop()
-      this.localScreenTrack = null
-    }
 
-    this.sendSlotUpdate('screen', enabled, enabled, Boolean(this.localScreenTrack))
+      if (enabled) {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+        this.localScreenTrack = stream.getVideoTracks()[0] ?? null
+        if (this.localScreenTrack) {
+          this.localScreenTrack.addEventListener('ended', () => {
+            void this.setScreenEnabled(false)
+          })
+        }
+        await this.screenTransceiver.sender.replaceTrack(this.localScreenTrack)
+      } else {
+        await this.screenTransceiver.sender.replaceTrack(null)
+        this.localScreenTrack?.stop()
+        this.localScreenTrack = null
+      }
+
+      this.publishLocalStream()
+      this.sendSlotUpdate('screen', enabled, enabled, Boolean(this.localScreenTrack))
+      this.emitDiagnostics()
+    } catch (error) {
+      this.captureError(error)
+      throw error
+    }
   }
 
   close() {
     this.allowPublisherNegotiation = false
+    try {
+      this.sendSignal({
+        type: 'participant.left',
+        payload: {}
+      })
+    } catch {
+      // Best-effort leave signal. If the socket is already closing, fall back to disconnect cleanup.
+    }
     this.signaling.close()
     this.publisherPc?.close()
     this.subscriberPc?.close()
     this.localAudioTrack?.stop()
     this.localCameraTrack?.stop()
     this.localScreenTrack?.stop()
+    this.localPreviewStream = null
+    this.events.onLocalStream?.(null)
+    this.emitDiagnostics()
   }
 
   private createPeerConnection(iceServers: ICEServerConfig[], peer: LocalPeerKind) {
@@ -148,7 +221,7 @@ export class ConferenceClient {
         return
       }
 
-      this.signaling.send<CandidatePayload>({
+      this.sendSignal<CandidatePayload>({
         type: 'trickle.candidate',
         payload: {
           peer,
@@ -157,16 +230,27 @@ export class ConferenceClient {
       })
     }
 
+    pc.onconnectionstatechange = () => {
+      this.emitDiagnostics()
+    }
+
     pc.oniceconnectionstatechange = () => {
       this.events.onStateChange(pc.iceConnectionState)
+      this.emitDiagnostics()
       if (peer === 'publisher' && (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed')) {
         void this.restartPublisherIce()
       }
     }
 
+    pc.onsignalingstatechange = () => {
+      this.emitDiagnostics()
+    }
+
     if (peer === 'publisher') {
       pc.onnegotiationneeded = async () => {
-        await this.negotiatePublisher()
+        await this.negotiatePublisher().catch((error) => {
+          this.captureError(error)
+        })
       }
     }
 
@@ -179,6 +263,7 @@ export class ConferenceClient {
         remoteStream.addTrack(event.track)
         this.remoteStreams.set(participantId, remoteStream)
         this.events.onRemoteTrack(participantId, slotKind, remoteStream)
+        this.emitDiagnostics()
       }
     }
 
@@ -196,6 +281,9 @@ export class ConferenceClient {
   }
 
   private async handleSignalMessage(message: SignalEnvelope) {
+    this.recordSignal(this.recentSignalsReceived, message.type)
+    this.emitDiagnostics()
+
     switch (message.type) {
       case 'room.snapshot': {
         const payload = message.payload as RoomSnapshotPayload
@@ -210,6 +298,7 @@ export class ConferenceClient {
         }
         await this.publisherPc.setRemoteDescription(payload.description)
         await this.flushPendingCandidates(this.publisherPc, this.pendingPublisherCandidates)
+        this.emitDiagnostics()
         return
       }
       case 'subscriber.offer': {
@@ -221,13 +310,14 @@ export class ConferenceClient {
         await this.flushPendingCandidates(this.subscriberPc, this.pendingSubscriberCandidates)
         const answer = await this.subscriberPc.createAnswer()
         await this.subscriberPc.setLocalDescription(answer)
-        this.signaling.send<SessionDescriptionPayload>({
+        this.sendSignal<SessionDescriptionPayload>({
           type: 'subscriber.answer',
           payload: {
             peer: 'subscriber',
             description: answer
           }
         })
+        this.emitDiagnostics()
         return
       }
       case 'trickle.candidate': {
@@ -245,6 +335,7 @@ export class ConferenceClient {
           return
         }
         await pc.addIceCandidate(payload.candidate)
+        this.emitDiagnostics()
         return
       }
       case 'media.slot.updated': {
@@ -268,7 +359,7 @@ export class ConferenceClient {
   }
 
   private sendSlotUpdate(kind: SlotKind, enabled: boolean, publishing: boolean, trackBound: boolean) {
-    this.signaling.send<SlotUpdatedPayload>({
+    this.sendSignal<SlotUpdatedPayload>({
       type: 'media.slot.updated',
       payload: {
         participantId: 'local',
@@ -292,13 +383,14 @@ export class ConferenceClient {
     try {
       const offer = await this.publisherPc.createOffer(iceRestart ? { iceRestart: true } : undefined)
       await this.publisherPc.setLocalDescription(offer)
-      this.signaling.send<SessionDescriptionPayload>({
+      this.sendSignal<SessionDescriptionPayload>({
         type: 'publisher.offer',
         payload: {
           peer: 'publisher',
           description: offer
         }
       })
+      this.emitDiagnostics()
     } finally {
       this.makingPublisherOffer = false
     }
@@ -310,8 +402,78 @@ export class ConferenceClient {
       await pc.addIceCandidate(candidate)
     }
   }
+
+  private sendSignal<T>(message: SignalEnvelope<T>) {
+    this.recordSignal(this.recentSignalsSent, message.type)
+    this.signaling.send(message)
+    this.emitDiagnostics()
+  }
+
+  private recordSignal(queue: string[], type: string) {
+    queue.push(type)
+    if (queue.length > 8) {
+      queue.shift()
+    }
+  }
+
+  private captureError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    this.lastError = message
+    this.events.onError?.(message)
+    this.emitDiagnostics()
+  }
+
+  private emitDiagnostics() {
+    this.events.onDiagnostics?.({
+      signalingState: this.signalingState,
+      publisher: describePeer(this.publisherPc),
+      subscriber: describePeer(this.subscriberPc),
+      local: {
+        micEnabled: this.localAudioTrack?.enabled ?? false,
+        micTrack: Boolean(this.localAudioTrack),
+        cameraTrack: Boolean(this.localCameraTrack),
+        screenTrack: Boolean(this.localScreenTrack)
+      },
+      remoteStreams: this.remoteStreams.size,
+      recentSignalsSent: [...this.recentSignalsSent],
+      recentSignalsReceived: [...this.recentSignalsReceived],
+      lastError: this.lastError
+    })
+  }
+
+  private publishLocalStream() {
+    const next = new MediaStream()
+
+    if (this.localAudioTrack) {
+      next.addTrack(this.localAudioTrack)
+    }
+
+    const preferredVideoTrack = this.localScreenTrack ?? this.localCameraTrack
+    if (preferredVideoTrack) {
+      next.addTrack(preferredVideoTrack)
+    }
+
+    this.localPreviewStream = next.getTracks().length > 0 ? next : null
+    this.events.onLocalStream?.(this.localPreviewStream)
+  }
 }
 
 function inferSlotKind(kind: string): SlotKind {
   return kind === 'audio' ? 'audio' : 'camera'
+}
+
+function describePeer(pc: RTCPeerConnection | null): PeerDiagnostics {
+  if (!pc) {
+    return {
+      signalingState: 'not-created',
+      connectionState: 'not-created',
+      iceConnectionState: 'not-created'
+    }
+  }
+
+  return {
+    signalingState: pc.signalingState,
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState
+  }
 }

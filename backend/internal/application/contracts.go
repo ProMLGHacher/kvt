@@ -23,6 +23,7 @@ type RoomRepository interface {
 type SessionRepository interface {
 	Save(context.Context, *domain.PeerSession) error
 	FindByID(context.Context, string) (*domain.PeerSession, error)
+	Delete(context.Context, string) error
 }
 
 type InviteService interface {

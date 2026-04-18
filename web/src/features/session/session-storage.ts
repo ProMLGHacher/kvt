@@ -26,3 +26,7 @@ export function loadJoinSession(roomId: string): StoredJoinSession | null {
     return null
   }
 }
+
+export function clearJoinSession(roomId: string) {
+  sessionStorage.removeItem(SESSION_PREFIX + roomId)
+}
