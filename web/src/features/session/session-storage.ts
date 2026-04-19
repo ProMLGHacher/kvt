@@ -11,7 +11,7 @@ type LocationLike = Pick<Location, 'origin' | 'protocol'>
 export function storeJoinSession(session: JoinResponse, locationLike: LocationLike = window.location) {
   const storedSession = normalizeStoredJoinSession({
     ...session,
-    roomJoinUrl: `${locationLike.origin}/rooms/${session.roomId}/join`
+    roomJoinUrl: `${locationLike.origin}/rooms/${session.roomId}`
   }, locationLike)
 
   sessionStorage.setItem(SESSION_PREFIX + session.roomId, JSON.stringify(storedSession))

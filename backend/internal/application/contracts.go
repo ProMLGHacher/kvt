@@ -15,6 +15,10 @@ type IDGenerator interface {
 	NewID() string
 }
 
+type RoomIDGenerator interface {
+	NewID() string
+}
+
 type RoomRepository interface {
 	Save(context.Context, *domain.Room) error
 	FindByID(context.Context, string) (*domain.Room, error)
@@ -61,8 +65,8 @@ type JoinResult struct {
 }
 
 type RoomMetadata struct {
-	RoomID            string                 `json:"roomId"`
-	HostParticipantID string                 `json:"hostParticipantId"`
-	ParticipantCount  int                    `json:"participantCount"`
+	RoomID            string                   `json:"roomId"`
+	HostParticipantID string                   `json:"hostParticipantId"`
+	ParticipantCount  int                      `json:"participantCount"`
 	Roles             []domain.ParticipantRole `json:"roles"`
 }

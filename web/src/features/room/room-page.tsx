@@ -1,41 +1,121 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ConferenceClient, type ConferenceDiagnostics } from '@/lib/rtc/conference-client'
-import { clearJoinSession, loadJoinSession } from '@/features/session/session-storage'
-import type { ParticipantState, RoomSnapshot, SlotKind, SlotUpdatedPayload } from '@/features/protocol/types'
+import { conferenceApi } from '@/lib/api'
+import type {
+  JoinResponse,
+  ParticipantState,
+  RoomMetadata,
+  RoomSnapshot,
+  SlotUpdatedPayload
+} from '@/features/protocol/types'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ParticipantGrid } from '@/features/room/participant-grid'
 import { ControlBar } from '@/features/room/control-bar'
+import { PrejoinModal } from '@/features/prejoin/prejoin-modal'
 
 type ParticipantMap = Record<string, ParticipantState>
 
 export function RoomPage() {
   const { roomId = '' } = useParams()
   const navigate = useNavigate()
-  const joinSession = useMemo(() => loadJoinSession(roomId), [roomId])
+  const [searchParams] = useSearchParams()
+  const requestedRole = searchParams.get('role') === 'host' ? 'host' : 'participant'
   const clientRef = useRef<ConferenceClient | null>(null)
-  const [participants, setParticipants] = useState<ParticipantMap>(() => indexParticipants(joinSession?.snapshot))
+  const [room, setRoom] = useState<RoomMetadata | null>(null)
+  const [roomLoading, setRoomLoading] = useState(true)
+  const [prejoinLoading, setPrejoinLoading] = useState(false)
+  const [activeSession, setActiveSession] = useState<JoinResponse | null>(null)
+  const [participants, setParticipants] = useState<ParticipantMap>({})
   const [streams, setStreams] = useState<Record<string, MediaStream>>({})
   const [connectionState, setConnectionState] = useState('idle')
   const [diagnostics, setDiagnostics] = useState<ConferenceDiagnostics | null>(null)
   const [roomError, setRoomError] = useState<string | null>(null)
-  const [actionStatus, setActionStatus] = useState('Waiting for room session to start.')
-  const [micEnabled, setMicEnabled] = useState(joinSession?.snapshot.participants.find((participant) => participant.id === joinSession.participantId)?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true)
-  const [cameraEnabled, setCameraEnabled] = useState(joinSession?.snapshot.participants.find((participant) => participant.id === joinSession.participantId)?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false)
+  const [actionStatus, setActionStatus] = useState('Check your setup before joining.')
+  const [micEnabled, setMicEnabled] = useState(true)
+  const [cameraEnabled, setCameraEnabled] = useState(false)
   const [screenEnabled, setScreenEnabled] = useState(false)
 
   useEffect(() => {
-    if (!joinSession) {
+    let cancelled = false
+
+    setRoomLoading(true)
+    setRoomError(null)
+    setActiveSession(null)
+    setParticipants({})
+    setStreams({})
+    setConnectionState('idle')
+    setDiagnostics(null)
+    setActionStatus('Check your setup before joining.')
+    setMicEnabled(true)
+    setCameraEnabled(false)
+    setScreenEnabled(false)
+
+    async function loadRoom() {
+      try {
+        const metadata = await conferenceApi.getRoom(roomId)
+        if (!cancelled) {
+          setRoom(metadata)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRoom(null)
+          setRoomError(readableError(error))
+          setActionStatus('Room is unavailable.')
+        }
+      } finally {
+        if (!cancelled) {
+          setRoomLoading(false)
+        }
+      }
+    }
+
+    void loadRoom()
+
+    return () => {
+      cancelled = true
+    }
+  }, [roomId])
+
+  useEffect(() => {
+    if (!activeSession) {
       return
     }
+
+    setParticipants(indexParticipants(activeSession.snapshot))
+    setStreams({})
+    setDiagnostics(null)
+    setConnectionState('connecting')
+
+    const localParticipant = activeSession.snapshot.participants.find(
+      (participant) => participant.id === activeSession.participantId
+    )
+
+    setMicEnabled(localParticipant?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true)
+    setCameraEnabled(localParticipant?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false)
+    setScreenEnabled(localParticipant?.slots.find((slot) => slot.kind === 'screen')?.enabled ?? false)
+  }, [activeSession])
+
+  useEffect(() => {
+    if (!activeSession) {
+      return
+    }
+
+    const localParticipant = activeSession.snapshot.participants.find(
+      (participant) => participant.id === activeSession.participantId
+    )
+    const sessionMicEnabled = localParticipant?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true
+    const sessionCameraEnabled = localParticipant?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false
 
     const client = new ConferenceClient({
       onSnapshot: (snapshot) => {
         setParticipants(indexParticipants(snapshot))
         setStreams((current) => {
           const activeParticipantIds = new Set(snapshot.participants.map((participant) => participant.id))
-          return Object.fromEntries(Object.entries(current).filter(([participantId]) => activeParticipantIds.has(participantId)))
+          return Object.fromEntries(
+            Object.entries(current).filter(([participantId]) => activeParticipantIds.has(participantId))
+          )
         })
       },
       onSlotUpdated: (payload) => setParticipants((current) => patchParticipantSlot(current, payload)),
@@ -45,13 +125,13 @@ export function RoomPage() {
       onLocalStream: (stream) => {
         setStreams((current) => {
           if (!stream) {
-            const { [joinSession.participantId]: _removed, ...rest } = current
+            const { [activeSession.participantId]: _removed, ...rest } = current
             return rest
           }
 
           return {
             ...current,
-            [joinSession.participantId]: stream
+            [activeSession.participantId]: stream
           }
         })
       },
@@ -62,61 +142,80 @@ export function RoomPage() {
 
     clientRef.current = client
     setActionStatus('Connecting signaling and media…')
-    void client.start({
-      wsUrl: joinSession.wsUrl,
-      iceServers: joinSession.iceServers,
-      micEnabled,
-      cameraEnabled
-    }).then(() => {
-      setActionStatus('Room session is live.')
-    }).catch((error) => {
-      setConnectionState('error')
-      setRoomError(readableError(error))
-      setActionStatus('Room session failed to start.')
-    })
+
+    void client
+      .start({
+        wsUrl: activeSession.wsUrl,
+        iceServers: activeSession.iceServers,
+        micEnabled: sessionMicEnabled,
+        cameraEnabled: sessionCameraEnabled
+      })
+      .then(() => {
+        setActionStatus('Room session is live.')
+      })
+      .catch((error) => {
+        setConnectionState('error')
+        setRoomError(readableError(error))
+        setActionStatus('Room session failed to start.')
+      })
 
     return () => {
       client.close()
+      if (clientRef.current === client) {
+        clientRef.current = null
+      }
     }
-  }, [joinSession])
+  }, [activeSession])
 
-  if (!joinSession) {
-    return (
-      <main className="flex min-h-screen items-center justify-center px-6">
-        <Card className="max-w-lg">
-          <CardHeader>
-            <CardTitle>Session not found</CardTitle>
-            <CardDescription>Open the room join page again so the prejoin flow can issue a fresh room session.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
-    )
-  }
-
-  const activeSession = joinSession
-  const localParticipant = participants[activeSession.participantId]
   const secureContext = window.isSecureContext
-  const participantList = useMemo(() => Object.values(participants), [participants])
-  const otherParticipants = participantList.filter((participant) => participant.id !== activeSession.participantId)
+  const participantList = Object.values(participants)
+  const otherParticipants = activeSession
+    ? participantList.filter((participant) => participant.id !== activeSession.participantId)
+    : []
   const participantNames = participantList.map((participant) => participant.displayName).join(', ')
   const visibleRemoteStreams = otherParticipants.filter((participant) => Boolean(streams[participant.id])).length
 
+  async function handleJoin(payload: { displayName: string; micEnabled: boolean; cameraEnabled: boolean }) {
+    setPrejoinLoading(true)
+    setRoomError(null)
+    setActionStatus('Starting room session…')
+
+    try {
+      const result = await conferenceApi.joinRoom(roomId, {
+        ...payload,
+        role: requestedRole
+      })
+
+      setActiveSession(result)
+      setActionStatus('Joining room…')
+    } catch (error) {
+      setRoomError(readableError(error))
+      setActionStatus('Join failed.')
+    } finally {
+      setPrejoinLoading(false)
+    }
+  }
+
   async function handleMicToggle() {
+    if (!activeSession) {
+      return
+    }
+
     const next = !micEnabled
     setRoomError(null)
     setActionStatus(next ? 'Turning microphone on…' : 'Muting microphone…')
     try {
       await clientRef.current?.setMicEnabled(next)
       setMicEnabled(next)
-      if (localParticipant) {
-        setParticipants((current) => patchParticipantSlot(current, {
+      setParticipants((current) =>
+        patchParticipantSlot(current, {
           participantId: activeSession.participantId,
           kind: 'audio',
           enabled: next,
           publishing: next,
           trackBound: true
-        }))
-      }
+        })
+      )
       setActionStatus(next ? 'Microphone is live.' : 'Microphone muted.')
     } catch (error) {
       setRoomError(readableError(error))
@@ -125,19 +224,25 @@ export function RoomPage() {
   }
 
   async function handleCameraToggle() {
+    if (!activeSession) {
+      return
+    }
+
     const next = !cameraEnabled
     setRoomError(null)
     setActionStatus(next ? 'Turning camera on…' : 'Turning camera off…')
     try {
       await clientRef.current?.setCameraEnabled(next)
       setCameraEnabled(next)
-      setParticipants((current) => patchParticipantSlot(current, {
-        participantId: activeSession.participantId,
-        kind: 'camera',
-        enabled: next,
-        publishing: next,
-        trackBound: next
-      }))
+      setParticipants((current) =>
+        patchParticipantSlot(current, {
+          participantId: activeSession.participantId,
+          kind: 'camera',
+          enabled: next,
+          publishing: next,
+          trackBound: next
+        })
+      )
       setActionStatus(next ? 'Camera is live.' : 'Camera is off.')
     } catch (error) {
       setRoomError(readableError(error))
@@ -146,19 +251,25 @@ export function RoomPage() {
   }
 
   async function handleScreenToggle() {
+    if (!activeSession) {
+      return
+    }
+
     const next = !screenEnabled
     setRoomError(null)
     setActionStatus(next ? 'Starting screen share…' : 'Stopping screen share…')
     try {
       await clientRef.current?.setScreenEnabled(next)
       setScreenEnabled(next)
-      setParticipants((current) => patchParticipantSlot(current, {
-        participantId: activeSession.participantId,
-        kind: 'screen',
-        enabled: next,
-        publishing: next,
-        trackBound: next
-      }))
+      setParticipants((current) =>
+        patchParticipantSlot(current, {
+          participantId: activeSession.participantId,
+          kind: 'screen',
+          enabled: next,
+          publishing: next,
+          trackBound: next
+        })
+      )
       setActionStatus(next ? 'Screen share is live.' : 'Screen share stopped.')
     } catch (error) {
       setRoomError(readableError(error))
@@ -168,9 +279,8 @@ export function RoomPage() {
 
   async function handleCopyLink() {
     try {
-      const roomJoinURL = joinSession?.roomJoinUrl ?? `${window.location.origin}/rooms/${activeSession.roomId}/join`
-      await navigator.clipboard.writeText(roomJoinURL)
-      setActionStatus('Room join link copied.')
+      await navigator.clipboard.writeText(`${window.location.origin}/rooms/${roomId}`)
+      setActionStatus('Room link copied.')
     } catch (error) {
       setRoomError(readableError(error))
       setActionStatus('Copy link failed.')
@@ -180,8 +290,35 @@ export function RoomPage() {
   function handleLeave() {
     setActionStatus('Leaving room…')
     clientRef.current?.close()
-    clearJoinSession(activeSession.roomId)
+    clientRef.current = null
+    setActiveSession(null)
+    setParticipants({})
+    setStreams({})
     navigate('/')
+  }
+
+  if (!activeSession) {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-6 py-16">
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <Badge className="w-fit">Room setup</Badge>
+            <CardTitle>Join room {roomId}</CardTitle>
+            <CardDescription>
+              Open the room directly, choose your microphone and camera preferences, then enter from here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            {roomLoading ? <p>Loading room details…</p> : null}
+            {!roomLoading && room ? <p>Participants currently inside: {room.participantCount}</p> : null}
+            {!roomLoading && room ? <p>Joining as: {requestedRole === 'host' ? 'Host' : 'Participant'}</p> : null}
+            {roomError ? <p className="text-red-600">{roomError}</p> : null}
+          </CardContent>
+        </Card>
+
+        <PrejoinModal open={!roomLoading && Boolean(room)} loading={prejoinLoading} onJoin={handleJoin} />
+      </main>
+    )
   }
 
   return (
@@ -191,7 +328,8 @@ export function RoomPage() {
           <Badge className="bg-accent text-accent-foreground">Room live</Badge>
           <h1 className="mt-4 font-display text-3xl font-semibold">Voice-first room {roomId}</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Publisher and subscriber stay separate, audio keeps priority, and camera or screen slots can be negotiated in without replacing the live call.
+            Join happens on the room URL itself, audio stays first, and camera or screen share can be added without
+            replacing the live call.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -206,7 +344,8 @@ export function RoomPage() {
           <CardHeader>
             <CardTitle className="text-red-700">Media Capture Is Blocked On This Origin</CardTitle>
             <CardDescription className="text-red-700/80">
-              Open the app on `http://localhost:8023` or over HTTPS if you want microphone, camera, and screen sharing to work in the browser.
+              Open the app on `http://localhost:8023` or over HTTPS if you want microphone, camera, and screen sharing
+              to work in the browser.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -216,7 +355,8 @@ export function RoomPage() {
         <CardHeader>
           <CardTitle>What To Report</CardTitle>
           <CardDescription>
-            These values are meant for debugging in plain language: tell me what badges you see here if something looks wrong.
+            These values are meant for debugging in plain language: tell me what badges you see here if something looks
+            wrong.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">

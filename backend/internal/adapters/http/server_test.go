@@ -21,10 +21,11 @@ func TestCreateRoomAndJoinEndpoints(t *testing.T) {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
-	ids := repository.NewDeterministicIDGenerator("room-1", "host-seed", "participant-1", "session-1")
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed", "participant-1", "session-1")
 	baseURL, _ := url.Parse("http://localhost:5173")
 	invites := application.NewHMACInviteService([]byte("secret"), clock, time.Hour)
-	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, ids, baseURL, []application.ICEConfig{
+	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, []application.ICEConfig{
 		{URLs: []string{"stun:turn.local:3478"}},
 	})
 	hub := signaling.NewHub()
@@ -64,10 +65,11 @@ func TestRoomMetadataEndpoint(t *testing.T) {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
-	ids := repository.NewDeterministicIDGenerator("room-1", "host-seed", "participant-1", "session-1")
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed", "participant-1", "session-1")
 	baseURL, _ := url.Parse("http://fallback.invalid")
 	invites := application.NewHMACInviteService([]byte("secret"), clock, time.Hour)
-	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, ids, baseURL, []application.ICEConfig{
+	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, []application.ICEConfig{
 		{URLs: []string{"stun:turn.local:3478"}},
 	})
 	hub := signaling.NewHub()
@@ -113,10 +115,11 @@ func TestEndpointsUseRequestHostForWebSocketURLs(t *testing.T) {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
-	ids := repository.NewDeterministicIDGenerator("room-1", "host-seed", "participant-1", "session-1")
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed", "participant-1", "session-1")
 	baseURL, _ := url.Parse("http://fallback.invalid")
 	invites := application.NewHMACInviteService([]byte("secret"), clock, time.Hour)
-	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, ids, baseURL, []application.ICEConfig{
+	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, []application.ICEConfig{
 		{URLs: []string{"stun:turn.local:3478"}},
 	})
 	hub := signaling.NewHub()
@@ -167,10 +170,11 @@ func TestEndpointsPreserveForwardedHTTPSForWebSocketURLs(t *testing.T) {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
-	ids := repository.NewDeterministicIDGenerator("room-1", "host-seed", "participant-1", "session-1")
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed", "participant-1", "session-1")
 	baseURL, _ := url.Parse("http://fallback.invalid")
 	invites := application.NewHMACInviteService([]byte("secret"), clock, time.Hour)
-	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, ids, baseURL, []application.ICEConfig{
+	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, []application.ICEConfig{
 		{URLs: []string{"stun:turn.local:3478"}},
 	})
 	hub := signaling.NewHub()

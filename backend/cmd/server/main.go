@@ -24,9 +24,10 @@ func main() {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.RuntimeClock{}
+	roomIDs := repository.NewHumanRoomIDGenerator()
 	ids := repository.UUIDGenerator{}
 	invites := application.NewHMACInviteService(cfg.InviteSecret, clock, 24*time.Hour)
-	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, ids, cfg.PublicBaseURL, cfg.ICEServers)
+	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, cfg.PublicBaseURL, cfg.ICEServers)
 	hub := signaling.NewHub()
 	lookup := repository.NewSessionLookup(roomRepo, sessionRepo)
 	sfu := media.NewSFU(api, hub, lookup)

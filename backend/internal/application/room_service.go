@@ -17,6 +17,7 @@ type RoomService struct {
 	sessions   SessionRepository
 	invites    InviteService
 	clock      Clock
+	roomIDs    RoomIDGenerator
 	ids        IDGenerator
 	baseURL    *url.URL
 	iceServers []ICEConfig
@@ -31,6 +32,7 @@ func NewRoomService(
 	sessions SessionRepository,
 	invites InviteService,
 	clock Clock,
+	roomIDs RoomIDGenerator,
 	ids IDGenerator,
 	baseURL *url.URL,
 	iceServers []ICEConfig,
@@ -40,6 +42,7 @@ func NewRoomService(
 		sessions:   sessions,
 		invites:    invites,
 		clock:      clock,
+		roomIDs:    roomIDs,
 		ids:        ids,
 		baseURL:    baseURL,
 		iceServers: iceServers,
@@ -52,7 +55,7 @@ func (s *RoomService) CreateRoom(ctx context.Context) (CreateRoomResult, error) 
 
 func (s *RoomService) CreateRoomForBaseURL(ctx context.Context, baseURL *url.URL) (CreateRoomResult, error) {
 	_ = baseURL
-	roomID := s.ids.NewID()
+	roomID := s.roomIDs.NewID()
 	now := s.clock.Now()
 	host := domain.NewParticipant(s.ids.NewID(), "Host", domain.RoleHost, now, domain.JoinPreferences{})
 	room := domain.NewRoom(roomID, now, host)

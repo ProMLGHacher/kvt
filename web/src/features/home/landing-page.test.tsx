@@ -42,7 +42,7 @@ describe('LandingPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /create room/i }))
 
     await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith('/rooms/room-1/join?role=host')
+      expect(navigate).toHaveBeenCalledWith('/rooms/room-1?role=host')
     })
   })
 
@@ -57,7 +57,7 @@ describe('LandingPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /join room/i }))
 
     await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith('/rooms/demo-room/join')
+      expect(navigate).toHaveBeenCalledWith('/rooms/demo-room')
     })
   })
 })

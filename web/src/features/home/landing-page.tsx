@@ -16,7 +16,7 @@ export function LandingPage() {
     setCreatingRoom(true)
     try {
       const room = await conferenceApi.createRoom()
-      navigate(`/rooms/${room.roomId}/join?role=host`)
+      navigate(`/rooms/${room.roomId}?role=host`)
     } finally {
       setCreatingRoom(false)
     }
@@ -28,7 +28,7 @@ export function LandingPage() {
     if (!roomId) {
       return
     }
-    navigate(`/rooms/${roomId}/join`)
+    navigate(`/rooms/${roomId}`)
   }
 
   return (
@@ -55,7 +55,7 @@ export function LandingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Create a room</CardTitle>
-              <CardDescription>Create a room id and go straight into the host prejoin experience.</CardDescription>
+              <CardDescription>Create a short room id and step straight into the prejoin setup.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button className="w-full justify-between" size="lg" onClick={handleCreateRoom} disabled={creatingRoom}>
@@ -71,12 +71,12 @@ export function LandingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Join by room id</CardTitle>
-              <CardDescription>Paste the room id or the full room join URL.</CardDescription>
+              <CardDescription>Paste the room id or the full room link.</CardDescription>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={handleJoinByRoomID}>
                 <Input
-                  placeholder="cda7fc49-42e1-4a64-a0bc-b157071c15c3 or https://kvt.araik.dev/rooms/<id>/join"
+                  placeholder="river-sky-42 or https://kvt.araik.dev/rooms/river-sky-42"
                   value={roomInput}
                   onChange={(event) => setRoomInput(event.target.value)}
                 />

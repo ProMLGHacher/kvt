@@ -50,10 +50,11 @@ func TestCreateRoomAndJoinRoom(t *testing.T) {
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
 	invites := NewHMACInviteService([]byte("secret"), clock, time.Hour)
-	ids := repository.NewDeterministicIDGenerator("room-1", "host-1", "participant-1", "session-1")
+	roomIDs := repository.NewDeterministicIDGenerator("room-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-1", "participant-1", "session-1")
 	baseURL, _ := url.Parse("http://localhost:5173")
 
-	service := NewRoomService(roomRepo, sessionRepo, invites, clock, ids, baseURL, []ICEConfig{
+	service := NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, []ICEConfig{
 		{URLs: []string{"stun:turn.local:3478"}},
 	})
 
@@ -62,7 +63,7 @@ func TestCreateRoomAndJoinRoom(t *testing.T) {
 		t.Fatalf("expected create room to succeed, got %v", err)
 	}
 
-	if createResult.RoomID != "room-1" {
+	if createResult.RoomID != "room-sky-42" {
 		t.Fatalf("expected room id to be returned, got %q", createResult.RoomID)
 	}
 
@@ -93,10 +94,11 @@ func TestHostJoinReusesReservedHostSlot(t *testing.T) {
 	sessionRepo := repository.NewInMemorySessionRepository()
 	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
 	invites := NewHMACInviteService([]byte("secret"), clock, time.Hour)
-	ids := repository.NewDeterministicIDGenerator("room-1", "host-seed", "session-1")
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed", "session-1")
 	baseURL, _ := url.Parse("http://localhost:5173")
 
-	service := NewRoomService(roomRepo, sessionRepo, invites, clock, ids, baseURL, nil)
+	service := NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, nil)
 
 	createResult, err := service.CreateRoom(context.Background())
 	if err != nil {

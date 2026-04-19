@@ -1,19 +1,23 @@
 import { act, render, waitFor } from '@testing-library/react'
+import { screen } from '@testing-library/dom'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const loadJoinSessionMock = vi.fn()
+const getRoomMock = vi.fn()
+const joinRoomMock = vi.fn()
 const startMock = vi.fn()
 const closeMock = vi.fn()
 const setMicEnabledMock = vi.fn()
 const setCameraEnabledMock = vi.fn()
 const setScreenEnabledMock = vi.fn()
 const conferenceClientCtor = vi.fn()
-const clearJoinSessionMock = vi.fn()
 
-vi.mock('@/features/session/session-storage', () => ({
-  loadJoinSession: (...args: unknown[]) => loadJoinSessionMock(...args),
-  clearJoinSession: (...args: unknown[]) => clearJoinSessionMock(...args)
+vi.mock('@/lib/api', () => ({
+  conferenceApi: {
+    getRoom: (...args: unknown[]) => getRoomMock(...args),
+    joinRoom: (...args: unknown[]) => joinRoomMock(...args)
+  }
 }))
 
 vi.mock('@/lib/rtc/conference-client', () => ({
@@ -33,16 +37,13 @@ import { RoomPage } from '@/features/room/room-page'
 
 describe('RoomPage lifecycle', () => {
   beforeEach(() => {
-    loadJoinSessionMock.mockReset()
-    conferenceClientCtor.mockReset()
-    clearJoinSessionMock.mockReset()
-    startMock.mockReset().mockResolvedValue(undefined)
-    closeMock.mockReset()
-    setMicEnabledMock.mockReset()
-    setCameraEnabledMock.mockReset()
-    setScreenEnabledMock.mockReset()
-
-    loadJoinSessionMock.mockImplementation(() => ({
+    getRoomMock.mockReset().mockResolvedValue({
+      roomId: 'room-1',
+      hostParticipantId: 'participant-1',
+      participantCount: 1,
+      roles: ['host']
+    })
+    joinRoomMock.mockReset().mockResolvedValue({
       sessionId: crypto.randomUUID(),
       participantId: 'participant-1',
       roomId: 'room-1',
@@ -65,36 +66,48 @@ describe('RoomPage lifecycle', () => {
           }
         ]
       }
-    }))
+    })
+    conferenceClientCtor.mockReset()
+    startMock.mockReset().mockResolvedValue(undefined)
+    closeMock.mockReset()
+    setMicEnabledMock.mockReset()
+    setCameraEnabledMock.mockReset()
+    setScreenEnabledMock.mockReset()
   })
 
-  it('keeps the same room session object across rerenders for the same room id', async () => {
-    const tree = (
-      <MemoryRouter initialEntries={['/rooms/room-1']}>
+  it('loads room metadata and joins from the room route without a dedicated join page', async () => {
+    render(
+      <MemoryRouter initialEntries={['/rooms/room-1?role=host']}>
         <Routes>
           <Route path="/rooms/:roomId" element={<RoomPage />} />
         </Routes>
       </MemoryRouter>
     )
 
-    const { rerender } = render(tree)
-
     await waitFor(() => {
-      expect(startMock).toHaveBeenCalledTimes(1)
+      expect(getRoomMock).toHaveBeenCalledWith('room-1')
     })
 
-    rerender(tree)
+    await userEvent.type(screen.getByPlaceholderText(/how people will see you/i), 'Araik')
+    await userEvent.click(screen.getByRole('button', { name: /join room/i }))
 
     await waitFor(() => {
-      expect(loadJoinSessionMock).toHaveBeenCalledTimes(1)
-      expect(conferenceClientCtor).toHaveBeenCalledTimes(1)
+      expect(joinRoomMock).toHaveBeenCalledWith(
+        'room-1',
+        expect.objectContaining({
+          displayName: 'Araik',
+          role: 'host'
+        })
+      )
+    })
+
+    await waitFor(() => {
       expect(startMock).toHaveBeenCalledTimes(1)
     })
   })
 
-  it('renders local self-preview when the room client exposes a local stream', async () => {
-    loadJoinSessionMock.mockReset()
-    loadJoinSessionMock.mockImplementation(() => ({
+  it('renders local self-preview when the room client exposes a local stream after join', async () => {
+    joinRoomMock.mockResolvedValue({
       sessionId: crypto.randomUUID(),
       participantId: 'participant-1',
       roomId: 'room-1',
@@ -117,7 +130,7 @@ describe('RoomPage lifecycle', () => {
           }
         ]
       }
-    }))
+    })
 
     const { container } = render(
       <MemoryRouter initialEntries={['/rooms/room-1']}>
@@ -126,6 +139,13 @@ describe('RoomPage lifecycle', () => {
         </Routes>
       </MemoryRouter>
     )
+
+    await waitFor(() => {
+      expect(getRoomMock).toHaveBeenCalledWith('room-1')
+    })
+
+    await userEvent.type(screen.getByPlaceholderText(/how people will see you/i), 'Araik')
+    await userEvent.click(screen.getByRole('button', { name: /join room/i }))
 
     await waitFor(() => {
       expect(conferenceClientCtor).toHaveBeenCalledTimes(1)
@@ -143,8 +163,7 @@ describe('RoomPage lifecycle', () => {
   })
 
   it('clears stale remote stream diagnostics when a participant disappears from the snapshot', async () => {
-    loadJoinSessionMock.mockReset()
-    loadJoinSessionMock.mockImplementation(() => ({
+    joinRoomMock.mockResolvedValue({
       sessionId: crypto.randomUUID(),
       participantId: 'participant-1',
       roomId: 'room-1',
@@ -177,7 +196,7 @@ describe('RoomPage lifecycle', () => {
           }
         ]
       }
-    }))
+    })
 
     const { findByText } = render(
       <MemoryRouter initialEntries={['/rooms/room-1']}>
@@ -186,6 +205,9 @@ describe('RoomPage lifecycle', () => {
         </Routes>
       </MemoryRouter>
     )
+
+    await userEvent.type(await screen.findByPlaceholderText(/how people will see you/i), 'Araik')
+    await userEvent.click(screen.getByRole('button', { name: /join room/i }))
 
     await waitFor(() => {
       expect(conferenceClientCtor).toHaveBeenCalledTimes(1)
