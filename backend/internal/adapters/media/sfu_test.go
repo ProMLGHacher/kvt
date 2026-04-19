@@ -178,6 +178,49 @@ func TestUpdateSlotPreferenceKeepsAudioSourceWhenMuted(t *testing.T) {
 	}
 }
 
+func TestRemoveParticipantCleansPeersAndSources(t *testing.T) {
+	api := newTestAPI()
+	sfu := NewSFU(api, newStubEmitter(), stubLookup{})
+
+	if _, err := sfu.EnsurePublisher("room-1", "participant-1"); err != nil {
+		t.Fatalf("expected ensure publisher to succeed, got %v", err)
+	}
+	if _, err := sfu.EnsureSubscriber("room-1", "participant-1"); err != nil {
+		t.Fatalf("expected ensure subscriber to succeed, got %v", err)
+	}
+
+	track, err := webrtc.NewTrackLocalStaticRTP(
+		webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus},
+		string(domain.SlotAudio),
+		"participant-1",
+	)
+	if err != nil {
+		t.Fatalf("expected track creation to succeed, got %v", err)
+	}
+
+	sfu.sources[participantSlotKey{ParticipantID: "participant-1", Kind: domain.SlotAudio}] = &SourceTrack{
+		ID:            1,
+		RoomID:        "room-1",
+		ParticipantID: "participant-1",
+		Kind:          domain.SlotAudio,
+		Track:         track,
+	}
+
+	if err := sfu.RemoveParticipant("participant-1"); err != nil {
+		t.Fatalf("expected remove participant to succeed, got %v", err)
+	}
+
+	if _, exists := sfu.publishers["participant-1"]; exists {
+		t.Fatalf("expected publisher to be removed")
+	}
+	if _, exists := sfu.subscribers["participant-1"]; exists {
+		t.Fatalf("expected subscriber to be removed")
+	}
+	if _, exists := sfu.sources[participantSlotKey{ParticipantID: "participant-1", Kind: domain.SlotAudio}]; exists {
+		t.Fatalf("expected participant sources to be removed")
+	}
+}
+
 func newTestAPI() *webrtc.API {
 	var settings webrtc.SettingEngine
 	settings.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)

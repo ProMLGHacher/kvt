@@ -334,6 +334,37 @@ func (s *SFU) AttachExistingSources(participantID string) error {
 	}))
 }
 
+func (s *SFU) RemoveParticipant(participantID string) error {
+	s.mu.RLock()
+	sourceKeys := make([]participantSlotKey, 0, len(s.sources))
+	for key, source := range s.sources {
+		if source.ParticipantID == participantID {
+			sourceKeys = append(sourceKeys, key)
+		}
+	}
+	s.mu.RUnlock()
+
+	for _, key := range sourceKeys {
+		if err := s.unpublish(participantID, key.Kind); err != nil {
+			log.Printf("[sfu] cleanup-unpublish-failed participant_id=%s kind=%s err=%v", participantID, key.Kind, err)
+		}
+	}
+
+	s.mu.Lock()
+	if publisher, exists := s.publishers[participantID]; exists {
+		delete(s.publishers, participantID)
+		_ = publisher.PC.Close()
+	}
+	if subscriber, exists := s.subscribers[participantID]; exists {
+		delete(s.subscribers, participantID)
+		_ = subscriber.PC.Close()
+	}
+	s.mu.Unlock()
+
+	log.Printf("[sfu] remove-participant participant_id=%s unpublished=%d", participantID, len(sourceKeys))
+	return nil
+}
+
 func (s *SFU) publishTrack(roomID, participantID string, kind domain.SlotKind, remote *webrtc.TrackRemote) error {
 	log.Printf("[sfu] publish-track room_id=%s participant_id=%s kind=%s track_id=%s stream_id=%s", roomID, participantID, kind, remote.ID(), remote.StreamID())
 	codec := remote.Codec().RTPCodecCapability
@@ -370,7 +401,9 @@ func (s *SFU) publishTrack(roomID, participantID string, kind domain.SlotKind, r
 
 	for _, subscriber := range subscribers {
 		if err := s.addSourceToSubscriber(subscriber, source); err != nil {
-			return err
+			log.Printf("[sfu] add-source-to-subscriber-failed subscriber_id=%s source_participant_id=%s kind=%s err=%v", subscriber.ParticipantID, source.ParticipantID, source.Kind, err)
+			_ = s.RemoveParticipant(subscriber.ParticipantID)
+			continue
 		}
 		if offer, err := s.CreateSubscriberOffer(subscriber.ParticipantID, false); err == nil && offer.Type != 0 {
 			sessionID, ok := s.lookup.SessionIDByParticipant(context.Background(), subscriber.ParticipantID)
@@ -380,6 +413,9 @@ func (s *SFU) publishTrack(roomID, participantID string, kind domain.SlotKind, r
 					Description: offer,
 				}))
 			}
+		} else if err != nil {
+			log.Printf("[sfu] create-subscriber-offer-failed subscriber_id=%s source_participant_id=%s kind=%s err=%v", subscriber.ParticipantID, source.ParticipantID, source.Kind, err)
+			_ = s.RemoveParticipant(subscriber.ParticipantID)
 		}
 	}
 

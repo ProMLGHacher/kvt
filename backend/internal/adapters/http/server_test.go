@@ -243,6 +243,10 @@ func (a *mediaBridgeAdapter) AttachExistingSources(participantID string) error {
 	return a.sfu.AttachExistingSources(participantID)
 }
 
+func (a *mediaBridgeAdapter) RemoveParticipant(participantID string) error {
+	return a.sfu.RemoveParticipant(participantID)
+}
+
 func (a *mediaBridgeAdapter) UpdateSlotPreference(participantID string, kind domain.SlotKind, enabled bool) error {
 	return a.sfu.UpdateSlotPreference(participantID, kind, enabled)
 }

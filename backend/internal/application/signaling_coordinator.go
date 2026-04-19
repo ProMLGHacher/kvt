@@ -25,6 +25,7 @@ type MediaBridge interface {
 	EnsurePublisher(roomID, participantID string) error
 	EnsureSubscriber(roomID, participantID string) error
 	AttachExistingSources(participantID string) error
+	RemoveParticipant(participantID string) error
 	UpdateSlotPreference(participantID string, kind domain.SlotKind, enabled bool) error
 	HandlePublisherOffer(participantID string, offer webrtc.SessionDescription) (webrtc.SessionDescription, error)
 	HandlePublisherCandidate(participantID string, candidate webrtc.ICECandidateInit) error
@@ -104,6 +105,9 @@ func (c *SignalingCoordinator) OnDisconnected(ctx context.Context, sessionID str
 		return err
 	}
 	if err := c.sessions.Delete(ctx, sessionID); err != nil {
+		return err
+	}
+	if err := c.media.RemoveParticipant(session.ParticipantID); err != nil {
 		return err
 	}
 

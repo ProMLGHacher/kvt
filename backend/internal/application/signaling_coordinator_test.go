@@ -14,6 +14,7 @@ import (
 
 type stubMediaBridge struct {
 	updateCalls []slotPreferenceCall
+	removedParticipants []string
 }
 
 type slotPreferenceCall struct {
@@ -27,6 +28,11 @@ func (m *stubMediaBridge) EnsurePublisher(string, string) error { return nil }
 func (m *stubMediaBridge) EnsureSubscriber(string, string) error { return nil }
 
 func (m *stubMediaBridge) AttachExistingSources(string) error { return nil }
+
+func (m *stubMediaBridge) RemoveParticipant(participantID string) error {
+	m.removedParticipants = append(m.removedParticipants, participantID)
+	return nil
+}
 
 func (m *stubMediaBridge) UpdateSlotPreference(participantID string, kind domain.SlotKind, enabled bool) error {
 	m.updateCalls = append(m.updateCalls, slotPreferenceCall{
@@ -217,6 +223,9 @@ func TestOnDisconnectedRemovesParticipantAndBroadcastsUpdatedSnapshot(t *testing
 	}
 	if len(payload.Snapshot.Participants) != 1 || payload.Snapshot.Participants[0].ID != host.ID {
 		t.Fatalf("expected broadcast snapshot to contain only host after guest disconnect")
+	}
+	if len(media.removedParticipants) != 1 || media.removedParticipants[0] != guest.ID {
+		t.Fatalf("expected media bridge cleanup for guest disconnect, got %#v", media.removedParticipants)
 	}
 }
 
