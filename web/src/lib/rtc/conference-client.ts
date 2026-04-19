@@ -12,8 +12,33 @@ import type {
   SlotUpdatedPayload
 } from '@/features/protocol/types'
 import { logError, logInfo, logWarn } from '@/lib/logger'
+import {
+  decidePeerRecoveryAction,
+  PEER_CHECKING_TIMEOUT_MS,
+  PEER_RECOVERY_COOLDOWN_MS,
+  type IceTransportMode
+} from '@/lib/rtc/recovery'
 
 type LocalPeerKind = 'publisher' | 'subscriber'
+
+interface PeerHealthSnapshot {
+  hasSelectedCandidatePair: boolean
+  totalBytes: number
+  hadSuccessfulTransport: boolean
+  localCandidate: ReturnType<typeof describeCandidateStats>
+  remoteCandidate: ReturnType<typeof describeCandidateStats>
+  transport: ReturnType<typeof describeTransportStats>
+  inbound: Array<Record<string, unknown>>
+  outbound: Array<Record<string, unknown>>
+}
+
+interface PeerRuntimeRecoveryState {
+  transportMode: IceTransportMode
+  checkingTimer: number | null
+  recoveryInFlight: boolean
+  lastRecoveryAt: number | null
+  hadSuccessfulTransport: boolean
+}
 
 export interface PeerDiagnostics {
   signalingState: string
@@ -41,6 +66,7 @@ type ConferenceEvents = {
   onSnapshot: (snapshot: RoomSnapshot) => void
   onSlotUpdated: (payload: SlotUpdatedPayload) => void
   onRemoteTrack: (participantId: string, kind: SlotKind, stream: MediaStream) => void
+  onRemoteStreamsReset?: () => void
   onLocalStream?: (stream: MediaStream | null) => void
   onStateChange: (state: string) => void
   onDiagnostics?: (diagnostics: ConferenceDiagnostics) => void
@@ -70,15 +96,21 @@ export class ConferenceClient {
   private allowPublisherNegotiation = false
   private pendingPublisherCandidates: RTCIceCandidateInit[] = []
   private pendingSubscriberCandidates: RTCIceCandidateInit[] = []
+  private startOptions: StartOptions | null = null
   private signalingState: SignalingState = 'idle'
   private recentSignalsSent: string[] = []
   private recentSignalsReceived: string[] = []
   private lastError: string | null = null
+  private publisherRecovery: PeerRuntimeRecoveryState = createPeerRecoveryState()
+  private subscriberRecovery: PeerRuntimeRecoveryState = createPeerRecoveryState()
+  private closed = false
 
   constructor(private events: ConferenceEvents) {}
 
   async start(options: StartOptions) {
     try {
+      this.closed = false
+      this.startOptions = options
       logInfo('rtc', 'starting conference client', options)
       this.events.onStateChange('connecting')
       this.signaling.subscribeState((state) => {
@@ -92,8 +124,8 @@ export class ConferenceClient {
         })
       })
 
-      this.publisherPc = this.createPeerConnection(options.iceServers, 'publisher')
-      this.subscriberPc = this.createPeerConnection(options.iceServers, 'subscriber')
+      this.publisherPc = this.createPeerConnection(options.iceServers, 'publisher', this.publisherRecovery.transportMode)
+      this.subscriberPc = this.createPeerConnection(options.iceServers, 'subscriber', this.subscriberRecovery.transportMode)
       this.reservePublisherSlots()
       this.emitDiagnostics()
       logInfo('rtc', 'publisher and subscriber peer connections created')
@@ -195,7 +227,10 @@ export class ConferenceClient {
   }
 
   close() {
+    this.closed = true
     this.allowPublisherNegotiation = false
+    this.clearRecoveryTimer('publisher')
+    this.clearRecoveryTimer('subscriber')
     try {
       this.sendSignal({
         type: 'participant.left',
@@ -216,13 +251,14 @@ export class ConferenceClient {
     logInfo('rtc', 'conference client closed')
   }
 
-  private createPeerConnection(iceServers: ICEServerConfig[], peer: LocalPeerKind) {
+  private createPeerConnection(iceServers: ICEServerConfig[], peer: LocalPeerKind, transportMode: IceTransportMode) {
     const pc = new RTCPeerConnection({
       iceServers: iceServers.map((server) => ({
         urls: server.urls,
         username: server.username,
         credential: server.credential
-      }))
+      })),
+      iceTransportPolicy: transportMode
     })
 
     pc.onicecandidate = (event) => {
@@ -249,9 +285,9 @@ export class ConferenceClient {
       this.events.onStateChange(pc.iceConnectionState)
       this.emitDiagnostics()
       void this.logPeerStatsSnapshot(pc, peer, pc.iceConnectionState)
-      if (peer === 'publisher' && (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed')) {
-        void this.restartPublisherIce()
-      }
+      this.handlePeerIceStateChange(peer, pc).catch((error) => {
+        this.captureError(error)
+      })
     }
 
     pc.onsignalingstatechange = () => {
@@ -334,12 +370,17 @@ export class ConferenceClient {
 
   private reservePublisherSlots() {
     if (!this.publisherPc) {
-      return
+      return null
     }
 
     this.audioTransceiver = this.publisherPc.addTransceiver('audio', { direction: 'sendonly' })
     this.cameraTransceiver = this.publisherPc.addTransceiver('video', { direction: 'sendonly' })
     this.screenTransceiver = this.publisherPc.addTransceiver('video', { direction: 'sendonly' })
+    return {
+      audio: this.audioTransceiver,
+      camera: this.cameraTransceiver,
+      screen: this.screenTransceiver
+    }
   }
 
   private async handleSignalMessage(message: SignalEnvelope) {
@@ -427,6 +468,224 @@ export class ConferenceClient {
     await this.negotiatePublisher(true)
   }
 
+  private async handlePeerIceStateChange(peer: LocalPeerKind, pc: RTCPeerConnection) {
+    if (this.closed || this.getPeerConnection(peer) !== pc) {
+      return
+    }
+
+    const recovery = this.getRecoveryState(peer)
+    const state = pc.iceConnectionState
+
+    if (state === 'connected' || state === 'completed') {
+      recovery.hadSuccessfulTransport = true
+      recovery.recoveryInFlight = false
+      this.clearRecoveryTimer(peer)
+      return
+    }
+
+    if (state === 'checking') {
+      this.scheduleCheckingTimeout(peer, pc)
+      return
+    }
+
+    this.clearRecoveryTimer(peer)
+
+    if (state === 'disconnected' || state === 'failed') {
+      await this.maybeRecoverPeer(peer, state, pc)
+    }
+  }
+
+  private scheduleCheckingTimeout(peer: LocalPeerKind, pc: RTCPeerConnection) {
+    const recovery = this.getRecoveryState(peer)
+    if (recovery.checkingTimer !== null) {
+      return
+    }
+
+    recovery.checkingTimer = window.setTimeout(() => {
+      recovery.checkingTimer = null
+      void this.evaluateCheckingTimeout(peer, pc).catch((error) => {
+        this.captureError(error)
+      })
+    }, PEER_CHECKING_TIMEOUT_MS)
+  }
+
+  private clearRecoveryTimer(peer: LocalPeerKind) {
+    const recovery = this.getRecoveryState(peer)
+    if (recovery.checkingTimer !== null) {
+      window.clearTimeout(recovery.checkingTimer)
+      recovery.checkingTimer = null
+    }
+  }
+
+  private async evaluateCheckingTimeout(peer: LocalPeerKind, pc: RTCPeerConnection) {
+    if (this.closed || this.getPeerConnection(peer) !== pc || pc.iceConnectionState !== 'checking') {
+      return
+    }
+
+    logWarn('rtc', 'peer checking timeout reached', {
+      peer,
+      transportMode: this.getRecoveryState(peer).transportMode,
+      timeoutMs: PEER_CHECKING_TIMEOUT_MS
+    })
+
+    await this.maybeRecoverPeer(peer, 'checking', pc)
+  }
+
+  private async maybeRecoverPeer(peer: LocalPeerKind, reason: 'checking' | 'disconnected' | 'failed', pc: RTCPeerConnection) {
+    const recovery = this.getRecoveryState(peer)
+    if (recovery.recoveryInFlight) {
+      return
+    }
+
+    const now = Date.now()
+    if (recovery.lastRecoveryAt && now - recovery.lastRecoveryAt < PEER_RECOVERY_COOLDOWN_MS) {
+      logInfo('rtc', 'peer recovery skipped due to cooldown', {
+        peer,
+        reason,
+        transportMode: recovery.transportMode,
+        cooldownMs: PEER_RECOVERY_COOLDOWN_MS
+      })
+      return
+    }
+
+    const health = await this.readPeerHealth(pc, recovery.hadSuccessfulTransport)
+    const action = decidePeerRecoveryAction({
+      transportMode: recovery.transportMode,
+      iceConnectionState: reason,
+      health: {
+        hasSelectedCandidatePair: health.hasSelectedCandidatePair,
+        totalBytes: health.totalBytes,
+        hadSuccessfulTransport: health.hadSuccessfulTransport
+      }
+    })
+
+    logWarn('rtc', 'peer recovery decision', {
+      peer,
+      reason,
+      transportMode: recovery.transportMode,
+      action,
+      hasSelectedCandidatePair: health.hasSelectedCandidatePair,
+      totalBytes: health.totalBytes,
+      localCandidate: health.localCandidate,
+      remoteCandidate: health.remoteCandidate,
+      transport: health.transport
+    })
+
+    if (action === 'none') {
+      return
+    }
+
+    recovery.recoveryInFlight = true
+    recovery.lastRecoveryAt = now
+    try {
+      if (action === 'fallback-relay') {
+        await this.switchPeerToRelay(peer, reason)
+        return
+      }
+
+      await this.requestPeerIceRestart(peer, reason)
+    } finally {
+      recovery.recoveryInFlight = false
+    }
+  }
+
+  private async switchPeerToRelay(peer: LocalPeerKind, reason: 'checking' | 'disconnected' | 'failed') {
+    if (!this.startOptions) {
+      return
+    }
+
+    const recovery = this.getRecoveryState(peer)
+    if (recovery.transportMode === 'relay') {
+      await this.requestPeerIceRestart(peer, reason)
+      return
+    }
+
+    recovery.transportMode = 'relay'
+    recovery.hadSuccessfulTransport = false
+    logWarn('rtc', 'switching peer to relay-only mode', { peer, reason })
+
+    if (peer === 'publisher') {
+      await this.rebuildPublisherPeer('relay')
+      return
+    }
+
+    await this.rebuildSubscriberPeer('relay')
+  }
+
+  private async requestPeerIceRestart(peer: LocalPeerKind, reason: 'checking' | 'disconnected' | 'failed') {
+    const recovery = this.getRecoveryState(peer)
+    logWarn('rtc', 'requesting peer ice restart', {
+      peer,
+      reason,
+      transportMode: recovery.transportMode
+    })
+
+    if (peer === 'publisher') {
+      await this.restartPublisherIce()
+      return
+    }
+
+    this.sendSignal<IceRestartPayload>({
+      type: 'ice.restart.requested',
+      payload: {
+        peer: 'subscriber'
+      }
+    })
+  }
+
+  private async rebuildPublisherPeer(transportMode: IceTransportMode) {
+    if (!this.startOptions) {
+      return
+    }
+
+    this.clearRecoveryTimer('publisher')
+    this.pendingPublisherCandidates = []
+    this.publisherPc?.close()
+    this.publisherPc = this.createPeerConnection(this.startOptions.iceServers, 'publisher', transportMode)
+    this.audioTransceiver = null
+    this.cameraTransceiver = null
+    this.screenTransceiver = null
+    const slots = this.reservePublisherSlots()
+    if (!slots) {
+      return
+    }
+
+    if (this.localAudioTrack) {
+      await slots.audio.sender.replaceTrack(this.localAudioTrack)
+    }
+    if (this.localCameraTrack) {
+      await slots.camera.sender.replaceTrack(this.localCameraTrack)
+    }
+    if (this.localScreenTrack) {
+      await slots.screen.sender.replaceTrack(this.localScreenTrack)
+    }
+
+    this.emitDiagnostics()
+    logInfo('rtc', 'publisher peer rebuilt', { transportMode })
+    await this.negotiatePublisher()
+  }
+
+  private async rebuildSubscriberPeer(transportMode: IceTransportMode) {
+    if (!this.startOptions) {
+      return
+    }
+
+    this.clearRecoveryTimer('subscriber')
+    this.pendingSubscriberCandidates = []
+    this.subscriberPc?.close()
+    this.subscriberPc = this.createPeerConnection(this.startOptions.iceServers, 'subscriber', transportMode)
+    this.remoteStreams.clear()
+    this.events.onRemoteStreamsReset?.()
+    this.emitDiagnostics()
+    logInfo('rtc', 'subscriber peer rebuilt', { transportMode })
+    this.sendSignal<IceRestartPayload>({
+      type: 'ice.restart.requested',
+      payload: {
+        peer: 'subscriber'
+      }
+    })
+  }
+
   private async logPeerStatsSnapshot(
     pc: RTCPeerConnection,
     peer: LocalPeerKind,
@@ -441,91 +700,30 @@ export class ConferenceClient {
     }
 
     try {
-      const report = await pc.getStats()
-      let selectedPair: RTCStats | null = null
-      let transportStat: RTCStats | null = null
-      const candidates = new Map<string, RTCStats>()
-      const inbound: Array<Record<string, unknown>> = []
-      const outbound: Array<Record<string, unknown>> = []
+      const health = await this.readPeerHealth(pc, this.getRecoveryState(peer).hadSuccessfulTransport)
 
-      report.forEach((stat) => {
-        if (stat.type === 'transport') {
-          transportStat = stat
-        }
-        if (
-          stat.type === 'candidate-pair' &&
-          (('selected' in stat && stat.selected) ||
-            ('nominated' in stat && stat.nominated && 'state' in stat && stat.state === 'succeeded'))
-        ) {
-          selectedPair = stat
-        }
-        if (stat.type === 'local-candidate' || stat.type === 'remote-candidate') {
-          candidates.set(stat.id, stat)
-        }
-        if (stat.type === 'inbound-rtp') {
-          inbound.push(describeMediaFlowStats(stat))
-        }
-        if (stat.type === 'outbound-rtp') {
-          outbound.push(describeMediaFlowStats(stat))
-        }
-      })
-
-      const transportSnapshot = transportStat as
-        | (RTCStats & {
-            selectedCandidatePairId?: string
-          })
-        | null
-
-      if (!selectedPair && transportSnapshot) {
-        const selectedPairId = transportSnapshot.selectedCandidatePairId
-        if (typeof selectedPairId === 'string' && selectedPairId.length > 0) {
-          selectedPair = report.get(selectedPairId) ?? null
-        }
-      }
-
-      if (!selectedPair) {
+      if (!health.hasSelectedCandidatePair) {
         logInfo('rtc', 'peer stats snapshot', {
           peer,
           reason,
           selectedPair: 'none',
-          transport: describeTransportStats(transportStat),
-          inbound,
-          outbound
+          transport: health.transport,
+          inbound: health.inbound,
+          outbound: health.outbound
         })
         return
       }
 
-      const pair = selectedPair as RTCStats & {
-        id?: string
-        state?: string
-        localCandidateId?: string
-        remoteCandidateId?: string
-        currentRoundTripTime?: number
-        availableOutgoingBitrate?: number
-        bytesReceived?: number
-        bytesSent?: number
-        packetsReceived?: number
-        packetsSent?: number
-      }
-      const localCandidate = pair.localCandidateId ? (candidates.get(pair.localCandidateId) ?? null) : null
-      const remoteCandidate = pair.remoteCandidateId ? (candidates.get(pair.remoteCandidateId) ?? null) : null
-
       logInfo('rtc', 'peer stats snapshot', {
         peer,
         reason,
-        pairId: pair.id,
-        state: pair.state ?? 'unknown',
-        currentRoundTripTime: pair.currentRoundTripTime ?? null,
-        availableOutgoingBitrate: pair.availableOutgoingBitrate ?? null,
-        bytesSent: pair.bytesSent ?? null,
-        bytesReceived: pair.bytesReceived ?? null,
-        packetsSent: pair.packetsSent ?? null,
-        packetsReceived: pair.packetsReceived ?? null,
-        localCandidate: describeCandidateStats(localCandidate),
-        remoteCandidate: describeCandidateStats(remoteCandidate),
-        transport: describeTransportStats(transportStat),
-        inbound,
-        outbound
+        hasSelectedCandidatePair: health.hasSelectedCandidatePair,
+        totalBytes: health.totalBytes,
+        localCandidate: health.localCandidate,
+        remoteCandidate: health.remoteCandidate,
+        transport: health.transport,
+        inbound: health.inbound,
+        outbound: health.outbound
       })
     } catch (error) {
       logWarn('rtc', 'peer stats snapshot failed', {
@@ -650,6 +848,104 @@ export class ConferenceClient {
       }))
     })
     this.events.onLocalStream?.(this.localPreviewStream)
+  }
+
+  private getPeerConnection(peer: LocalPeerKind) {
+    return peer === 'publisher' ? this.publisherPc : this.subscriberPc
+  }
+
+  private getRecoveryState(peer: LocalPeerKind) {
+    return peer === 'publisher' ? this.publisherRecovery : this.subscriberRecovery
+  }
+
+  private async readPeerHealth(pc: RTCPeerConnection, hadSuccessfulTransport: boolean): Promise<PeerHealthSnapshot> {
+    const report = await pc.getStats()
+    let selectedPair: RTCStats | null = null
+    let transportStat: RTCStats | null = null
+    const candidates = new Map<string, RTCStats>()
+    const inbound: Array<Record<string, unknown>> = []
+    const outbound: Array<Record<string, unknown>> = []
+
+    report.forEach((stat) => {
+      if (stat.type === 'transport') {
+        transportStat = stat
+      }
+      if (
+        stat.type === 'candidate-pair' &&
+        (('selected' in stat && stat.selected) ||
+          ('nominated' in stat && stat.nominated && 'state' in stat && stat.state === 'succeeded'))
+      ) {
+        selectedPair = stat
+      }
+      if (stat.type === 'local-candidate' || stat.type === 'remote-candidate') {
+        candidates.set(stat.id, stat)
+      }
+      if (stat.type === 'inbound-rtp') {
+        inbound.push(describeMediaFlowStats(stat))
+      }
+      if (stat.type === 'outbound-rtp') {
+        outbound.push(describeMediaFlowStats(stat))
+      }
+    })
+
+    const transportSnapshot = transportStat as
+      | (RTCStats & {
+          selectedCandidatePairId?: string
+        })
+      | null
+
+    if (!selectedPair && transportSnapshot) {
+      const selectedPairId = transportSnapshot.selectedCandidatePairId
+      if (typeof selectedPairId === 'string' && selectedPairId.length > 0) {
+        selectedPair = report.get(selectedPairId) ?? null
+      }
+    }
+
+    if (!selectedPair) {
+      const transport = describeTransportStats(transportStat)
+      const totalBytes = (transport?.bytesReceived ?? 0) + (transport?.bytesSent ?? 0)
+      return {
+        hasSelectedCandidatePair: false,
+        totalBytes,
+        hadSuccessfulTransport: hadSuccessfulTransport || totalBytes > 0,
+        localCandidate: null,
+        remoteCandidate: null,
+        transport,
+        inbound,
+        outbound
+      }
+    }
+
+    const pair = selectedPair as RTCStats & {
+      localCandidateId?: string
+      remoteCandidateId?: string
+      bytesReceived?: number
+      bytesSent?: number
+    }
+    const localCandidate = pair.localCandidateId ? (candidates.get(pair.localCandidateId) ?? null) : null
+    const remoteCandidate = pair.remoteCandidateId ? (candidates.get(pair.remoteCandidateId) ?? null) : null
+    const totalBytes = (pair.bytesReceived ?? 0) + (pair.bytesSent ?? 0)
+
+    return {
+      hasSelectedCandidatePair: true,
+      totalBytes,
+      hadSuccessfulTransport: hadSuccessfulTransport || totalBytes > 0,
+      localCandidate: describeCandidateStats(localCandidate),
+      remoteCandidate: describeCandidateStats(remoteCandidate),
+      transport: describeTransportStats(transportStat),
+      inbound,
+      outbound
+    }
+  }
+}
+
+function createPeerRecoveryState(): PeerRuntimeRecoveryState {
+  return {
+    transportMode: 'all',
+    checkingTimer: null,
+    recoveryInFlight: false,
+    lastRecoveryAt: null,
+    hadSuccessfulTransport: false
   }
 }
 

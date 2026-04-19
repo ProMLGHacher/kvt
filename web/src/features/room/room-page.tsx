@@ -136,6 +136,9 @@ export function RoomPage() {
       onRemoteTrack: (participantId, _kind, stream) => {
         setRemoteStreams((current) => ({ ...current, [participantId]: stream }))
       },
+      onRemoteStreamsReset: () => {
+        setRemoteStreams({})
+      },
       onLocalStream: (stream) => {
         setLocalStream(stream)
       },
