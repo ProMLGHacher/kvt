@@ -8,4 +8,3 @@ tmp
 *.log
 backend/bin
 backend/.cache
-webapp

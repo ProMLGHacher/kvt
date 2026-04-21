@@ -1,0 +1,8 @@
+{
+    "name": "kvt",
+    "private": true,
+    "workspaces": [
+      "webapp",
+      "kvt/*"
+    ]
+  }
