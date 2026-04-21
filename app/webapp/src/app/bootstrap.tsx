@@ -1,9 +1,25 @@
 import { createRoot } from 'react-dom/client'
+import { createKvt } from '@kvt/core'
+import { KvtProvider, KvtRouterProvider } from '@kvt/react'
+import { KvtThemeProvider } from '@kvt/theme'
+import { Suspense } from 'react'
+import { initI18n } from './i18n/config'
 import './styles/index.css'
-import App from '../App.tsx'
+import { counterModule } from '../features/counter/di'
+import { appRoutes } from './router'
+
+initI18n()
+
+const runtime = createKvt({
+  modules: [counterModule]
+})
 
 createRoot(document.getElementById('root')!).render(
-  <>
-    <App />
-  </>
+  <KvtThemeProvider>
+    <KvtProvider runtime={runtime}>
+      <Suspense fallback={null}>
+        <KvtRouterProvider routes={appRoutes} />
+      </Suspense>
+    </KvtProvider>
+  </KvtThemeProvider>
 )

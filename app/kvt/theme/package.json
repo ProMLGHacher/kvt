@@ -1,5 +1,5 @@
 {
-  "name": "@kvt/core",
+  "name": "@kvt/theme",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -8,16 +8,21 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./styles.css": "./dist/styles.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && cp src/styles/styles.css dist/styles.css",
     "watch": "tsc -p tsconfig.json --watch"
   },
+  "dependencies": {
+    "react": "^19.2.5"
+  },
   "devDependencies": {
+    "@types/react": "^19.2.14",
     "typescript": "^5.9.0"
   }
 }

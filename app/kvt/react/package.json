@@ -1,5 +1,5 @@
 {
-  "name": "@kvt/core",
+  "name": "@kvt/react",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -17,7 +17,13 @@
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -p tsconfig.json --watch"
   },
+  "dependencies": {
+    "@kvt/core": "0.0.1",
+    "react": "^19.2.5",
+    "react-router": "^7.14.1"
+  },
   "devDependencies": {
+    "@types/react": "^19.2.14",
     "typescript": "^5.9.0"
   }
 }

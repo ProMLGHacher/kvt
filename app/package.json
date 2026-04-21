@@ -1,6 +1,9 @@
 {
     "name": "kvt",
     "private": true,
+    "scripts": {
+      "build": "npm run build -w webapp"
+    },
     "workspaces": [
       "webapp",
       "kvt/*"
