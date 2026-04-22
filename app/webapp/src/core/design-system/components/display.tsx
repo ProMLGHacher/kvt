@@ -1,4 +1,4 @@
-import { type HTMLAttributes, type ReactNode, type VideoHTMLAttributes } from 'react'
+import { forwardRef, type HTMLAttributes, type ReactNode, type VideoHTMLAttributes } from 'react'
 import { cn } from '../utils'
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -104,11 +104,13 @@ export function Spinner({ className, ...props }: HTMLAttributes<HTMLSpanElement>
   )
 }
 
-export function VideoAspectRatio(props: VideoHTMLAttributes<HTMLVideoElement>) {
-  return (
+export const VideoAspectRatio = forwardRef<HTMLVideoElement, VideoHTMLAttributes<HTMLVideoElement>>(
+  ({ className, ...props }, ref) => (
     <video
-      className={cn('w-full overflow-hidden rounded-xl bg-muted', props.className)}
+      ref={ref}
+      className={cn('w-full overflow-hidden rounded-xl bg-muted', className)}
       {...props}
     />
   )
-}
+)
+VideoAspectRatio.displayName = 'VideoAspectRatio'

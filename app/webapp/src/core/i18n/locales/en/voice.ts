@@ -1,0 +1,111 @@
+export default {
+  home: {
+    badge: 'Voice rooms',
+    title: 'Start a room when the conversation is ready.',
+    description:
+      'Create a conference, share the link, and let people join with microphone and camera choices already prepared.',
+    createRoom: 'Create room',
+    createHint: 'You can adjust mic and camera before entering.',
+    joinTitle: 'Join a room',
+    joinDescription: 'Paste a room id or the full room link.',
+    roomInputPlaceholder: 'clear-river-42',
+    continue: 'Continue',
+    directJoinHint: 'No separate join page needed: the room opens directly.',
+    errors: {
+      roomInputRequired: 'Enter a room id or link',
+      invalidRoom: 'Enter a valid room id or link',
+      createRoom: 'Could not create room.'
+    }
+  },
+  prejoin: {
+    badge: 'Prejoin',
+    cameraPreview: 'Camera preview',
+    cameraOff: 'Camera is off. You can join with audio only.',
+    title: 'Ready to join?',
+    description: 'Set your name and choose how you want to enter the room.',
+    nameLabel: 'Your name',
+    namePlaceholder: 'Araik',
+    microphone: 'Microphone',
+    camera: 'Camera',
+    micOn: 'You will join unmuted.',
+    micOff: 'You will join muted.',
+    cameraOn: 'Your camera preview is on.',
+    cameraOffShort: 'Camera will stay off.',
+    defaultDevice: 'Default',
+    joinRoom: 'Join room',
+    errors: {
+      load: 'Could not load room settings.',
+      nameRequired: 'Name is required',
+      enterName: 'Enter your name before joining.',
+      join: 'Could not join room.',
+      preview: 'Could not start local preview.'
+    }
+  },
+  room: {
+    header: {
+      title: 'Room {{roomId}}',
+      participants_one: '{{count}} participant',
+      participants_other: '{{count}} participants',
+      techInfo: 'Tech info',
+      copyLink: 'Copy link',
+      leave: 'Leave'
+    },
+    empty: {
+      title: 'Room is waiting.',
+      description: 'Join settings will open before media starts.'
+    },
+    participant: {
+      you: 'You',
+      screen: 'Screen',
+      mic: 'Mic',
+      cam: 'Cam',
+      roles: {
+        host: 'Host',
+        participant: 'Participant'
+      }
+    },
+    controls: {
+      mute: 'Mute',
+      unmute: 'Unmute',
+      cameraOff: 'Camera off',
+      cameraOn: 'Camera on',
+      stopShare: 'Stop share',
+      shareScreen: 'Share screen'
+    },
+    tech: {
+      title: 'Technical info',
+      room: 'Room',
+      publisher: 'Publisher',
+      subscriber: 'Subscriber',
+      signaling: 'Signaling',
+      noDiagnostics: 'No diagnostics yet.',
+      export: 'Export',
+      clear: 'Clear'
+    },
+    status: {
+      chooseSettings: 'Choose how you want to enter the room.',
+      logsCleared: 'Local logs cleared.',
+      microphoneOn: 'Microphone is on.',
+      microphoneMuted: 'Microphone is muted.',
+      cameraOn: 'Camera is on.',
+      cameraOff: 'Camera is off.',
+      screenStarted: 'Screen sharing started.',
+      screenStopped: 'Screen sharing stopped.',
+      linkCopied: 'Room link copied.',
+      linkCopyFailed: 'Could not copy room link.',
+      mediaStarting: 'Room media is starting.'
+    },
+    toasts: {
+      logsConsole: 'Logs are ready in console for this presentation pass.',
+      logsPrepared: 'Logs prepared.',
+      logsCleared: 'Local logs cleared.',
+      sessionMissing: 'Join session was not found.',
+      microphoneFailed: 'Could not update microphone.',
+      cameraFailed: 'Could not update camera.',
+      screenFailed: 'Could not update screen sharing.',
+      linkCopied: 'Room link copied.',
+      linkCopyFailed: 'Could not copy room link.',
+      mediaFailed: 'Could not start room media.'
+    }
+  }
+} as const

@@ -1,5 +1,5 @@
 export type JoinRoomFlowParams = {
-  roomId: string
+  idOrLink: string
 }
 
 export type JoinRoomFlowResult = {

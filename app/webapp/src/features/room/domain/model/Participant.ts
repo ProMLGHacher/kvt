@@ -1,18 +1,18 @@
 export type ParticipantRole = 'host' | 'participant'
 
-export type ParticipantSlotKind = 'audio' | 'video'
+export type ParticipantSlotKind = 'audio' | 'camera' | 'screen'
 
 export type ParticipantSlot = {
-  enabled: boolean
-  kind: ParticipantSlotKind
-  publishing: boolean
-  revision: number
-  trackBound: boolean
+  readonly enabled: boolean
+  readonly kind: ParticipantSlotKind
+  readonly publishing: boolean
+  readonly revision: number
+  readonly trackBound: boolean
 }
 
 export type Participant = {
-  displayName: string
-  id: string
-  role: ParticipantRole
-  slots: ParticipantSlot[]
+  readonly displayName: string
+  readonly id: string
+  readonly role: ParticipantRole
+  readonly slots: readonly ParticipantSlot[]
 }

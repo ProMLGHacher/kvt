@@ -1,5 +1,6 @@
 import common from './locales/ru/common'
 import chat from './locales/ru/chat'
+import voice from './locales/ru/voice'
 
 /**
  * Default-locale resources used by i18next's official TypeScript integration.
@@ -9,7 +10,8 @@ import chat from './locales/ru/chat'
  */
 const resources = {
   chat,
-  common
+  common,
+  voice
 } as const
 
 export default resources

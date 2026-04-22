@@ -1,12 +1,16 @@
 export default {
   nav: {
-    brand: 'KVT framework',
-    main: 'Chat',
+    brand: 'KVT rooms',
+    main: 'Home',
     theme: 'Theme',
-    language: 'Language'
+    language: 'Language',
+    themeMode: {
+      light: 'light',
+      dark: 'dark'
+    }
   },
   loading: {
-    title: 'Loading chat...',
-    description: 'The feature and its DI module are loaded lazily when the route opens.'
+    title: 'Loading room...',
+    description: 'Preparing the screen and app state.'
   }
 } as const

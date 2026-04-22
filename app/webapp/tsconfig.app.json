@@ -12,6 +12,7 @@
     "moduleResolution": "bundler",
     "paths": {
       "@app/*": ["./src/app/*"],
+      "@capabilities/*": ["./src/capabilities/*"],
       "@core/*": ["./src/core/*"],
       "@features/*": ["./src/features/*"]
     },

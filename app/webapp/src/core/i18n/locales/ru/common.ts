@@ -1,12 +1,16 @@
 export default {
   nav: {
-    brand: 'KVT framework',
-    main: 'Чат',
+    brand: 'KVT rooms',
+    main: 'Главная',
     theme: 'Тема',
-    language: 'Язык'
+    language: 'Язык',
+    themeMode: {
+      light: 'светлая',
+      dark: 'тёмная'
+    }
   },
   loading: {
-    title: 'Загружаем чат...',
-    description: 'Фича и ее DI-модуль подтягиваются лениво при открытии маршрута.'
+    title: 'Загружаем комнату...',
+    description: 'Подготавливаем экран и состояние приложения.'
   }
 } as const

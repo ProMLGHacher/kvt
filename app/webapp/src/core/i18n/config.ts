@@ -32,7 +32,7 @@ export function initI18n() {
     fallbackLng: 'ru',
     supportedLngs: [...supportedLanguages],
     defaultNS,
-    ns: [defaultNS],
+    ns: [defaultNS, 'voice'],
     partialBundledLanguages: true,
     interpolation: {
       escapeValue: false

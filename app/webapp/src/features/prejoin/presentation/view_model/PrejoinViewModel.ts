@@ -1,0 +1,210 @@
+import { MutableSharedFlow, MutableStateFlow, ViewModel } from '@kvt/core'
+import {
+  initialPrejoinState,
+  type PrejoinUiAction,
+  type PrejoinUiEffect,
+  type PrejoinUiState
+} from '../model/PrejoinState'
+import type { JoinRoomFlowUseCase } from '@features/prejoin/domain/usecases/JoinRoomFlowUseCase'
+import type { LoadPrejoinContextUseCase } from '@features/prejoin/domain/usecases/LoadPrejoinContextUseCase'
+import type { StartPrejoinPreviewUseCase } from '@features/prejoin/domain/usecases/StartPrejoinPreviewUseCase'
+import type { ObserveLocalMediaUseCase } from '@capabilities/media/domain/usecases/ObserveLocalMediaUseCase'
+
+export class PrejoinViewModel extends ViewModel {
+  private readonly state = new MutableStateFlow<PrejoinUiState>(initialPrejoinState)
+  private readonly effects = new MutableSharedFlow<PrejoinUiEffect>()
+
+  readonly uiState = this.state.asStateFlow()
+  readonly uiEffect = this.effects.asSharedFlow()
+
+  constructor(
+    private readonly loadPrejoinContextUseCase: LoadPrejoinContextUseCase,
+    private readonly startPrejoinPreviewUseCase: StartPrejoinPreviewUseCase,
+    private readonly observeLocalMediaUseCase: ObserveLocalMediaUseCase,
+    private readonly joinRoomFlowUseCase: JoinRoomFlowUseCase
+  ) {
+    super()
+  }
+
+  protected override onInit() {
+    return this.observeLocalMediaUseCase.execute().subscribe((media) => {
+      this.state.update((state) => ({ ...state, preview: media.preview }))
+    })
+  }
+
+  onEvent(event: PrejoinUiAction) {
+    switch (event.type) {
+      case 'room-configured':
+        void this.configureRoom(event.roomId, event.role)
+        break
+      case 'display-name-changed':
+        this.updateDisplayName(event.value)
+        break
+      case 'microphone-toggled':
+        void this.updateMicrophone(event.enabled)
+        break
+      case 'camera-toggled':
+        void this.updateCamera(event.enabled)
+        break
+      case 'microphone-selected':
+        this.state.update((state) => ({ ...state, selectedMicrophoneId: event.deviceId }))
+        break
+      case 'camera-selected':
+        this.state.update((state) => ({ ...state, selectedCameraId: event.deviceId }))
+        break
+      case 'join-pressed':
+        void this.join()
+        break
+      default:
+        throw new Error(`Unknown event: ${JSON.stringify(event)}`)
+    }
+  }
+
+  private async configureRoom(roomId: string, role: PrejoinUiState['role']) {
+    if (this.state.value.roomId === roomId && this.state.value.role === role) {
+      return
+    }
+
+    this.state.update((state) => ({
+      ...state,
+      roomId,
+      role,
+      loading: true,
+      error: null
+    }))
+
+    const context = await this.loadPrejoinContextUseCase.execute({ roomId, requestedRole: role })
+    if (!context.ok) {
+      this.state.update((state) => ({
+        ...state,
+        loading: false,
+        error: 'prejoin.errors.load'
+      }))
+      return
+    }
+
+    const preferences = context.value.preferences
+    this.state.update((state) => ({
+      ...state,
+      loading: false,
+      devices: context.value.devices,
+      role,
+      displayName: {
+        value: preferences.displayName ?? '',
+        error: null,
+        showError: false
+      },
+      micEnabled: preferences.defaultMicEnabled,
+      cameraEnabled: preferences.defaultCameraEnabled,
+      selectedMicrophoneId: preferences.preferredMicrophoneId,
+      selectedCameraId: preferences.preferredCameraId,
+      joinButton: {
+        ...state.joinButton,
+        enabled: Boolean(preferences.displayName?.trim())
+      }
+    }))
+
+    await this.startPreview()
+  }
+
+  private updateDisplayName(value: string) {
+    const trimmed = value.trim()
+    this.state.update((state) => ({
+      ...state,
+      displayName: {
+        value,
+        error: trimmed ? null : 'prejoin.errors.nameRequired',
+        showError: state.displayName.showError && !trimmed
+      },
+      joinButton: {
+        ...state.joinButton,
+        enabled: trimmed.length > 0
+      }
+    }))
+  }
+
+  private async updateMicrophone(enabled: boolean) {
+    this.state.update((state) => ({
+      ...state,
+      micEnabled: enabled,
+      preview: state.preview ? { ...state.preview, micEnabled: enabled } : state.preview
+    }))
+    await this.startPreview()
+  }
+
+  private async updateCamera(enabled: boolean) {
+    this.state.update((state) => ({
+      ...state,
+      cameraEnabled: enabled,
+      preview: state.preview
+        ? {
+            ...state.preview,
+            cameraEnabled: enabled,
+            previewAvailable: enabled,
+            status: enabled ? 'ready' : 'idle'
+          }
+        : state.preview
+    }))
+    await this.startPreview()
+  }
+
+  private async join() {
+    const state = this.state.value
+    const displayName = state.displayName.value.trim()
+
+    if (!displayName) {
+      this.state.update((current) => ({
+        ...current,
+        displayName: {
+          ...current.displayName,
+          error: 'prejoin.errors.nameRequired',
+          showError: true
+        }
+      }))
+      this.effects.emit({ type: 'join-failed', message: 'prejoin.errors.enterName' })
+      return
+    }
+
+    this.state.update((current) => ({
+      ...current,
+      joinButton: { ...current.joinButton, loading: true, enabled: false }
+    }))
+
+    const result = await this.joinRoomFlowUseCase.execute({
+      roomId: state.roomId,
+      displayName,
+      micEnabled: state.micEnabled,
+      cameraEnabled: state.cameraEnabled,
+      microphoneDeviceId: state.selectedMicrophoneId,
+      cameraDeviceId: state.selectedCameraId,
+      role: state.role
+    })
+
+    this.state.update((current) => ({
+      ...current,
+      joinButton: { ...current.joinButton, loading: false, enabled: true }
+    }))
+
+    if (result.ok) {
+      this.effects.emit({ type: 'joined', roomId: result.value.session.roomId })
+    } else {
+      this.effects.emit({ type: 'join-failed', message: 'prejoin.errors.join' })
+    }
+  }
+
+  private async startPreview() {
+    const state = this.state.value
+    const result = await this.startPrejoinPreviewUseCase.execute({
+      displayName: state.displayName.value,
+      micEnabled: state.micEnabled,
+      cameraEnabled: state.cameraEnabled,
+      microphoneDeviceId: state.selectedMicrophoneId,
+      cameraDeviceId: state.selectedCameraId,
+      noiseSuppressionEnabled: true
+    })
+
+    if (!result.ok) {
+      this.effects.emit({ type: 'preview-failed', message: 'prejoin.errors.preview' })
+    }
+  }
+}

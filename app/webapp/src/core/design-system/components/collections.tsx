@@ -76,15 +76,7 @@ export function CommandList({ className, ...props }: HTMLAttributes<HTMLDivEleme
 }
 
 export function Carousel({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn(
-        'grid auto-cols-[minmax(16rem,80%)] grid-flow-col gap-4 overflow-x-auto snap-x',
-        className
-      )}
-      {...props}
-    />
-  )
+  return <div className={cn('flex snap-x gap-4 overflow-x-auto', className)} {...props} />
 }
 
 export function Chart({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

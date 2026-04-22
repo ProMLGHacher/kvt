@@ -36,7 +36,7 @@ export const InputOTP = forwardRef<HTMLInputElement, InputOtpProps>(
       ref={ref}
       inputMode={inputMode}
       maxLength={length}
-      className={cn('max-w-56 text-center tracking-[0.28em]', className)}
+      className={cn('max-w-56 text-center tracking-widest', className)}
       {...props}
     />
   )

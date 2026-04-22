@@ -77,7 +77,7 @@ export function ToastViewport({ className, ...props }: HTMLAttributes<HTMLDivEle
   return (
     <div
       className={cn(
-        'fixed bottom-4 right-4 z-50 grid w-[min(24rem,calc(100vw-2rem))] gap-3',
+        'fixed bottom-4 left-4 right-4 z-50 grid gap-3 sm:left-auto sm:w-96',
         className
       )}
       {...props}

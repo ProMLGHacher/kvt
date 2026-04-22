@@ -34,8 +34,7 @@ export function SupportingPaneScaffold({
     <div
       className={cn(
         'grid gap-5',
-        navigator.directive.mode === 'dual' &&
-          'md:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]',
+        navigator.directive.mode === 'dual' && 'md:grid-cols-2',
         navigator.directive.mode === 'stack' && 'grid-cols-1',
         className
       )}
@@ -84,10 +83,8 @@ export function ListDetailPaneScaffold({
     <div
       className={cn(
         'grid gap-5',
-        navigator.directive.mode === 'dual' &&
-          'md:grid-cols-[minmax(16rem,0.75fr)_minmax(0,1.25fr)]',
-        navigator.directive.mode === 'triple' &&
-          'xl:grid-cols-[minmax(16rem,0.7fr)_minmax(0,1.3fr)_minmax(18rem,0.8fr)]',
+        navigator.directive.mode === 'dual' && 'md:grid-cols-2',
+        navigator.directive.mode === 'triple' && 'xl:grid-cols-3',
         navigator.directive.mode === 'stack' && 'grid-cols-1',
         className
       )}

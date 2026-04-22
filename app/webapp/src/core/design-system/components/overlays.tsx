@@ -17,7 +17,7 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         className={cn(
-          'w-[min(100%,32rem)] rounded-2xl border border-border bg-surface p-5 text-surface-foreground shadow-lg',
+          'w-full max-w-lg rounded-2xl border border-border bg-surface p-5 text-surface-foreground shadow-lg',
           className
         )}
         {...props}
@@ -48,8 +48,8 @@ export interface DrawerProps extends HTMLAttributes<HTMLDivElement> {
 export function Drawer({ open, side = 'right', className, ...props }: DrawerProps) {
   if (!open) return null
   const sideClass = {
-    left: 'left-0 top-0 h-full w-[min(100%,26rem)]',
-    right: 'right-0 top-0 h-full w-[min(100%,26rem)]',
+    left: 'left-0 top-0 h-full w-full max-w-md',
+    right: 'right-0 top-0 h-full w-full max-w-md',
     top: 'left-0 top-0 min-h-56 w-full',
     bottom: 'bottom-0 left-0 min-h-56 w-full'
   }[side]
@@ -70,7 +70,7 @@ export function Popover({ className, ...props }: HTMLAttributes<HTMLDivElement>)
   return (
     <div
       className={cn(
-        'w-[min(100%,20rem)] rounded-xl border border-border bg-surface p-3 shadow-md',
+        'w-full max-w-sm rounded-xl border border-border bg-surface p-3 shadow-md',
         className
       )}
       {...props}

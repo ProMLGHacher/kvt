@@ -21,9 +21,9 @@ export type JoinRoomResult = {
 export type JoinRoomError = { type: 'unknown-error' } | { type: 'room-not-found' }
 
 export type JoinRoomIceServer = {
-  credential: string
+  credential?: string
   urls: string[]
-  username: string
+  username?: string
 }
 
 export type JoinRoomSnapshot = {

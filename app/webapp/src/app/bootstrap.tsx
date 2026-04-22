@@ -6,10 +6,11 @@ import { Suspense } from 'react'
 import { initI18n } from '@core/i18n/config'
 import './styles/index.css'
 import { appRoutes } from './router'
+import { voiceModule } from './di'
 
 initI18n()
 
-const runtime = createKvt()
+const runtime = createKvt({ modules: [voiceModule] })
 
 createRoot(document.getElementById('root')!).render(
   <KvtThemeProvider>

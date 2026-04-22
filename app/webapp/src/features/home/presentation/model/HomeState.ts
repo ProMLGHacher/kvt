@@ -13,13 +13,11 @@ export type HomeUiAction =
   | { readonly type: 'create-room-pressed' }
 
 export type HomeUiEffect =
-  | { readonly type: 'join-success'; readonly roomId: string }
-  | { readonly type: 'create-room-success'; readonly roomId: string }
-  | { readonly type: 'join-error'; readonly error: string }
-  | { readonly type: 'create-room-error'; readonly error: string }
+  | { readonly type: 'open-room'; readonly roomId: string }
+  | { readonly type: 'show-message'; readonly message: string }
 
 export const initialHomeState: HomeUiState = {
   idOrLinkToJoinState: { value: '', error: null, showError: false },
   joinButtonState: { enabled: false, loading: false, error: null },
-  createRoomButtonState: { enabled: false, loading: false, error: null }
+  createRoomButtonState: { enabled: true, loading: false, error: null }
 }

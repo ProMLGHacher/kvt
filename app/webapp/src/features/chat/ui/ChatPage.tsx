@@ -61,8 +61,8 @@ export default function ChatPage() {
     (windowSizeClass.width === 'medium' && windowSizeClass.height === 'compact')
 
   return (
-    <section className="h-[calc(100vh-5.5rem)] px-4 pb-4 md:px-6">
-      <Card className="h-full overflow-hidden rounded-[2rem] shadow-xl">
+    <section className="min-h-full px-4 pb-4 md:px-6">
+      <Card className="h-full overflow-hidden rounded-4xl shadow-xl">
         {isCompact ? (
           <CompactChatLayout
             mobilePane={mobilePane}
@@ -82,7 +82,7 @@ export default function ChatPage() {
       </Card>
 
       {!isCompact && uiState.inspector && !shouldShowInspectorColumn(windowSizeClass.widthPx) && (
-        <Sheet className="w-[min(100%,28rem)] animate-in slide-in-from-right-4" open side="right">
+        <Sheet className="animate-in slide-in-from-right-4" open side="right">
           <InspectorPane floating state={uiState} t={t} viewModel={viewModel} />
         </Sheet>
       )}
@@ -234,7 +234,7 @@ function ChatListPane({
             <Avatar className="mx-auto bg-primary text-primary-foreground" fallback="K" />
           ) : (
             <>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">
                 {t('eyebrow')}
               </p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight">{t('title')}</h1>
@@ -258,7 +258,7 @@ function ChatListPane({
             <button
               key={chat.id}
               className={cn(
-                'group grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-muted/70',
+                'group flex items-center gap-3 rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-muted/70',
                 rail && 'grid-cols-1 justify-items-center gap-1 rounded-3xl px-2 py-3',
                 chat.selected
                   ? 'border-primary bg-primary/10 shadow-sm'
@@ -300,7 +300,7 @@ function ChatListPane({
                 </>
               )}
               {rail && (
-                <span className="max-w-full truncate text-[0.65rem] text-muted-foreground">
+                <span className="max-w-full truncate text-xs text-muted-foreground">
                   {chat.avatar}
                 </span>
               )}
@@ -385,7 +385,7 @@ function MessageBubble({
     >
       <div
         className={cn(
-          'flex max-w-[min(42rem,100%)] gap-3',
+          'flex max-w-2xl gap-3',
           message.mine && 'flex-row-reverse',
           selected && 'rounded-3xl ring-2 ring-primary/50'
         )}

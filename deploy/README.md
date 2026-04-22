@@ -6,7 +6,7 @@ This directory contains the local infrastructure needed for the first end-to-end
 
 - `nginx` - the only host-exposed gateway, published on `8023`.
 - `backend` - Go API, signaling, and SFU process, internal-only in the Docker network.
-- `web` - Vite dev server for the React client, internal-only in the Docker network.
+- `web` - Vite dev server for the new `app/webapp` React client, internal-only in the Docker network.
 - `turn` - coturn for browser relay traffic.
 
 ## Run

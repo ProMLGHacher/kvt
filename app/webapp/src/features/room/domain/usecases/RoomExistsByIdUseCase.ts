@@ -12,17 +12,12 @@ export class RoomExistsByIdUseCase implements UseCase<
   async execute(
     params: RoomExistsByIdParams
   ): PromiseResult<RoomExistsByIdResult, RoomExistsByIdError> {
-    const room = await this.roomRepository.getRoom(params)
+    const room = await this.roomRepository.roomExists(params)
 
     if (room.ok) {
-      return ok({ exists: true })
+      return ok({ exists: room.value })
     } else {
-      switch (room.error.type) {
-        case 'room-not-found':
-          return ok({ exists: false })
-        default:
-          return err({ type: 'unknown-error' })
-      }
+      return err({ type: 'unknown-error' })
     }
   }
 }
