@@ -1,7 +1,8 @@
 import { useSharedFlow, useStateFlow, useViewModel } from '@kvt/react'
 import { useState } from 'react'
-import { CounterViewModel } from './presentation'
 import { useTranslation } from 'react-i18next'
+import { Badge, Button, Card, CardContent, SupportingPaneScaffold } from '@core/design-system'
+import { CounterViewModel } from './presentation'
 
 export function CounterScreen() {
   const { t } = useTranslation('common')
@@ -24,56 +25,81 @@ export function CounterScreen() {
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground">{t('home.description')}</p>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-          <article className="rounded-[2rem] border border-border bg-surface p-8 shadow-lg">
-            <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">{t('home.stateLabel')}</p>
-                <p className="mt-3 text-7xl font-semibold tracking-tight text-primary">
-                  {uiState.count}
+        <SupportingPaneScaffold
+          compactBehavior="stack"
+          mainPane={
+            <Card className="h-full rounded-4xl shadow-lg">
+              <CardContent className="p-8">
+                <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('home.stateLabel')}
+                    </p>
+                    <p className="mt-3 text-7xl font-semibold tracking-tight text-primary">
+                      {uiState.count}
+                    </p>
+                    <p className="mt-3 text-xl text-surface-foreground">
+                      {t('home.count', { count: uiState.count })}
+                    </p>
+                  </div>
+
+                  <Button
+                    className="rounded-2xl px-6 py-4 shadow-md"
+                    onClick={() => viewModel.onIncrementClicked()}
+                    size="lg"
+                  >
+                    {t('home.action')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          }
+          supportingPane={
+            <Card className="h-full rounded-[2rem] border-transparent bg-accent text-accent-foreground">
+              <CardContent className="p-8">
+                <Badge className="uppercase tracking-[0.18em] opacity-70" variant="secondary">
+                  {t('home.effectTitle')}
+                </Badge>
+                <p className="mt-5 text-2xl font-semibold">
+                  {effectCount === null
+                    ? t('home.effectIdle')
+                    : t('home.milestone', { count: effectCount })}
                 </p>
-                <p className="mt-3 text-xl text-surface-foreground">
-                  {t('home.count', { count: uiState.count })}
-                </p>
-              </div>
+                <p className="mt-6 text-sm opacity-75">{t('home.effectDescription')}</p>
+              </CardContent>
+            </Card>
+          }
+        />
 
-              <button
-                className="rounded-2xl bg-primary px-6 py-4 font-semibold text-primary-foreground shadow-md transition hover:bg-primary-hover active:bg-primary-active"
-                onClick={() => viewModel.onIncrementClicked()}
-              >
-                {t('home.action')}
-              </button>
-            </div>
-          </article>
-
-          <aside className="rounded-[2rem] border border-border bg-accent p-8 text-accent-foreground">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] opacity-70">
-              {t('home.effectTitle')}
-            </p>
-            <p className="mt-5 text-2xl font-semibold">
-              {effectCount === null
-                ? t('home.effectIdle')
-                : t('home.milestone', { count: effectCount })}
-            </p>
-            <p className="mt-6 text-sm opacity-75">{t('home.effectDescription')}</p>
-          </aside>
-        </div>
-
-        <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-surface p-5">
-            <strong className="block text-surface-foreground">{t('home.dataTitle')}</strong>
-            {t('home.dataText')}
-          </div>
-          <div className="rounded-2xl border border-border bg-surface p-5">
-            <strong className="block text-surface-foreground">{t('home.domainTitle')}</strong>
-            {t('home.domainText')}
-          </div>
-          <div className="rounded-2xl border border-border bg-surface p-5">
-            <strong className="block text-surface-foreground">{t('home.presentationTitle')}</strong>
-            {t('home.presentationText')}
-          </div>
-        </div>
+        <ListDetailBenefits />
       </section>
     </main>
+  )
+}
+
+function ListDetailBenefits() {
+  const { t } = useTranslation('common')
+
+  return (
+    <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-3">
+      <Card className="rounded-2xl">
+        <CardContent className="p-5">
+          <strong className="block text-surface-foreground">{t('home.dataTitle')}</strong>
+          {t('home.dataText')}
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardContent className="p-5">
+          <strong className="block text-surface-foreground">{t('home.domainTitle')}</strong>
+          {t('home.domainText')}
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl">
+        <CardContent className="p-5">
+          <strong className="block text-surface-foreground">{t('home.presentationTitle')}</strong>
+          {t('home.presentationText')}
+        </CardContent>
+      </Card>
+    </div>
   )
 }

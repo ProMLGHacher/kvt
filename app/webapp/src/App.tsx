@@ -1,7 +1,8 @@
 import { KvtLink, KvtOutlet } from '@kvt/react'
 import { useKvtTheme } from '@kvt/theme'
 import { useTranslation } from 'react-i18next'
-import { setLanguage, supportedLanguages, type SupportedLanguage } from './core/i18n/config'
+import { Button, Card, CardContent, NativeSelect, buttonClassName } from '@core/design-system'
+import { setLanguage, supportedLanguages, type SupportedLanguage } from '@core/i18n/config'
 
 export function AppLayout() {
   const { t, i18n } = useTranslation('common')
@@ -18,20 +19,28 @@ export function AppLayout() {
         </KvtLink>
         <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
           <KvtLink
-            className="rounded-full border border-border bg-surface px-4 py-2 text-surface-foreground"
+            className={buttonClassName({
+              variant: 'outline',
+              size: 'sm',
+              className: 'rounded-full bg-surface'
+            })}
             to="/"
           >
             {t('nav.main')}
           </KvtLink>
           <KvtLink
-            className="rounded-full border border-border bg-surface px-4 py-2 text-surface-foreground"
+            className={buttonClassName({
+              variant: 'outline',
+              size: 'sm',
+              className: 'rounded-full bg-surface'
+            })}
             to="/reports"
           >
             {t('nav.reports')}
           </KvtLink>
-          <select
+          <NativeSelect
             aria-label={t('nav.language')}
-            className="rounded-full border border-border bg-surface px-4 py-2 text-surface-foreground outline-none ring-ring focus:ring-2"
+            className="w-auto rounded-full px-4"
             value={i18n.language}
             onChange={(event) => void setLanguage(event.target.value as SupportedLanguage)}
           >
@@ -40,14 +49,16 @@ export function AppLayout() {
                 {language.toUpperCase()}
               </option>
             ))}
-          </select>
-          <button
-            className="rounded-full border border-border bg-surface px-4 py-2 text-surface-foreground"
+          </NativeSelect>
+          <Button
+            className="rounded-full bg-surface"
             onClick={toggleMode}
+            size="sm"
             type="button"
+            variant="outline"
           >
             {t('nav.theme')}: {resolvedMode}
-          </button>
+          </Button>
         </div>
       </nav>
 
@@ -61,10 +72,12 @@ export function FeatureFallback() {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-10">
-      <div className="rounded-[2rem] border border-border bg-surface p-8">
-        <h2 className="text-2xl font-semibold text-surface-foreground">{t('loading.title')}</h2>
-        <p className="mt-3 text-sm text-muted-foreground">{t('loading.description')}</p>
-      </div>
+      <Card className="rounded-[2rem]">
+        <CardContent className="p-8">
+          <h2 className="text-2xl font-semibold text-surface-foreground">{t('loading.title')}</h2>
+          <p className="mt-3 text-sm text-muted-foreground">{t('loading.description')}</p>
+        </CardContent>
+      </Card>
     </section>
   )
 }

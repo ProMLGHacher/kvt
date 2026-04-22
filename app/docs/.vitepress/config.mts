@@ -103,6 +103,8 @@ function createEnglishSidebar() {
         { text: 'Flows and State', link: '/guide/flows' },
         { text: 'React Adapter', link: '/guide/react-adapter' },
         { text: 'Internationalization', link: '/guide/i18n' },
+        { text: 'Design System', link: '/guide/design-system' },
+        { text: 'Adaptive Layouts', link: '/guide/adaptive-layouts' },
         { text: 'Theming', link: '/guide/theming' }
       ]
     },
@@ -136,6 +138,8 @@ function createRussianSidebar() {
         { text: 'Flows и состояние', link: '/ru/guide/flows' },
         { text: 'React adapter', link: '/ru/guide/react-adapter' },
         { text: 'Интернационализация', link: '/ru/guide/i18n' },
+        { text: 'Дизайн-система', link: '/ru/guide/design-system' },
+        { text: 'Адаптивные layouts', link: '/ru/guide/adaptive-layouts' },
         { text: 'Темы', link: '/ru/guide/theming' }
       ]
     },

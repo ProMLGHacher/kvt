@@ -2,6 +2,7 @@
   "name": "voice-first-sfu-project",
   "private": true,
   "scripts": {
+    "build": "npm --prefix app run build && npm run build:web",
     "dev:web": "npm --prefix web run dev",
     "build:web": "npm --prefix web run build",
     "docs:dev": "npm --prefix app run docs:dev",
