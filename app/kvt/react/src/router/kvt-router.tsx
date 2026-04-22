@@ -13,7 +13,10 @@ import { useKvt } from '../hooks/use-kvt'
 
 export { Link as KvtLink, Outlet as KvtOutlet }
 
-type LoadedRouteComponent = ComponentType | { default: ComponentType } | { Component: ComponentType }
+type LoadedRouteComponent =
+  | ComponentType
+  | { default: ComponentType }
+  | { Component: ComponentType }
 type RouteComponentLoader = () => Promise<LoadedRouteComponent>
 type RouteLoader = (args: LoaderFunctionArgs) => unknown | Promise<unknown>
 
@@ -43,27 +46,36 @@ export interface KvtFeatureRouteDefinition extends BaseRouteDefinition {
   readonly component: RouteComponentLoader
 }
 
-export type KvtRouteDefinition = KvtLayoutRouteDefinition | KvtScreenRouteDefinition | KvtFeatureRouteDefinition
+export type KvtRouteDefinition =
+  | KvtLayoutRouteDefinition
+  | KvtScreenRouteDefinition
+  | KvtFeatureRouteDefinition
 
 export interface KvtRouterProviderProps {
   readonly routes: readonly KvtRouteDefinition[]
 }
 
-export function kvtLayoutRoute(definition: Omit<KvtLayoutRouteDefinition, 'type'>): KvtLayoutRouteDefinition {
+export function kvtLayoutRoute(
+  definition: Omit<KvtLayoutRouteDefinition, 'type'>
+): KvtLayoutRouteDefinition {
   return {
     ...definition,
     type: 'layout'
   }
 }
 
-export function kvtRoute(definition: Omit<KvtScreenRouteDefinition, 'type'>): KvtScreenRouteDefinition {
+export function kvtRoute(
+  definition: Omit<KvtScreenRouteDefinition, 'type'>
+): KvtScreenRouteDefinition {
   return {
     ...definition,
     type: 'screen'
   }
 }
 
-export function kvtFeatureRoute(definition: Omit<KvtFeatureRouteDefinition, 'type'>): KvtFeatureRouteDefinition {
+export function kvtFeatureRoute(
+  definition: Omit<KvtFeatureRouteDefinition, 'type'>
+): KvtFeatureRouteDefinition {
   return {
     ...definition,
     type: 'feature'
@@ -79,7 +91,10 @@ export function kvtFeatureRoute(definition: Omit<KvtFeatureRouteDefinition, 'typ
  */
 export function KvtRouterProvider({ routes }: KvtRouterProviderProps) {
   const runtime = useKvt()
-  const router = useMemo(() => createBrowserRouter(routes.map((route) => toRouteObject(route, runtime))), [routes, runtime])
+  const router = useMemo(
+    () => createBrowserRouter(routes.map((route) => toRouteObject(route, runtime))),
+    [routes, runtime]
+  )
 
   return <RouterProvider router={router} />
 }
@@ -115,7 +130,9 @@ function toRouteObject(route: KvtRouteDefinition, runtime: KvtRuntime): RouteObj
 
   const loader = async (args: LoaderFunctionArgs) => {
     const moduleKey = route.moduleKey ?? route.path ?? 'index'
-    await runtime.container.loadModule(moduleKey, async () => normalizeLoadedModule(await route.module()))
+    await runtime.container.loadModule(moduleKey, async () =>
+      normalizeLoadedModule(await route.module())
+    )
     return route.loader?.(args)
   }
   const lazy = async () => {

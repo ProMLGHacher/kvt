@@ -20,10 +20,7 @@ export class CounterViewModel extends ViewModel {
   readonly uiState: StateFlow<CounterUiState> = this.mutableUiState.asStateFlow()
   readonly effects: SharedFlow<number> = this.mutableEffects.asSharedFlow()
 
-  constructor(
-    incrementCounter: IncrementCounterUseCase,
-    counterRepository: CounterRepository
-  ) {
+  constructor(incrementCounter: IncrementCounterUseCase, counterRepository: CounterRepository) {
     super()
     this.incrementCounter = incrementCounter
     this.addDisposable(

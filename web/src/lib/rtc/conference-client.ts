@@ -124,8 +124,16 @@ export class ConferenceClient {
         })
       })
 
-      this.publisherPc = this.createPeerConnection(options.iceServers, 'publisher', this.publisherRecovery.transportMode)
-      this.subscriberPc = this.createPeerConnection(options.iceServers, 'subscriber', this.subscriberRecovery.transportMode)
+      this.publisherPc = this.createPeerConnection(
+        options.iceServers,
+        'publisher',
+        this.publisherRecovery.transportMode
+      )
+      this.subscriberPc = this.createPeerConnection(
+        options.iceServers,
+        'subscriber',
+        this.subscriberRecovery.transportMode
+      )
       this.reservePublisherSlots()
       this.emitDiagnostics()
       logInfo('rtc', 'publisher and subscriber peer connections created')
@@ -251,7 +259,11 @@ export class ConferenceClient {
     logInfo('rtc', 'conference client closed')
   }
 
-  private createPeerConnection(iceServers: ICEServerConfig[], peer: LocalPeerKind, transportMode: IceTransportMode) {
+  private createPeerConnection(
+    iceServers: ICEServerConfig[],
+    peer: LocalPeerKind,
+    transportMode: IceTransportMode
+  ) {
     const pc = new RTCPeerConnection({
       iceServers: iceServers.map((server) => ({
         urls: server.urls,
@@ -518,7 +530,11 @@ export class ConferenceClient {
   }
 
   private async evaluateCheckingTimeout(peer: LocalPeerKind, pc: RTCPeerConnection) {
-    if (this.closed || this.getPeerConnection(peer) !== pc || pc.iceConnectionState !== 'checking') {
+    if (
+      this.closed ||
+      this.getPeerConnection(peer) !== pc ||
+      pc.iceConnectionState !== 'checking'
+    ) {
       return
     }
 
@@ -531,7 +547,11 @@ export class ConferenceClient {
     await this.maybeRecoverPeer(peer, 'checking', pc)
   }
 
-  private async maybeRecoverPeer(peer: LocalPeerKind, reason: 'checking' | 'disconnected' | 'failed', pc: RTCPeerConnection) {
+  private async maybeRecoverPeer(
+    peer: LocalPeerKind,
+    reason: 'checking' | 'disconnected' | 'failed',
+    pc: RTCPeerConnection
+  ) {
     const recovery = this.getRecoveryState(peer)
     if (recovery.recoveryInFlight) {
       return
@@ -589,7 +609,10 @@ export class ConferenceClient {
     }
   }
 
-  private async switchPeerToRelay(peer: LocalPeerKind, reason: 'checking' | 'disconnected' | 'failed') {
+  private async switchPeerToRelay(
+    peer: LocalPeerKind,
+    reason: 'checking' | 'disconnected' | 'failed'
+  ) {
     if (!this.startOptions) {
       return
     }
@@ -612,7 +635,10 @@ export class ConferenceClient {
     await this.rebuildSubscriberPeer('relay')
   }
 
-  private async requestPeerIceRestart(peer: LocalPeerKind, reason: 'checking' | 'disconnected' | 'failed') {
+  private async requestPeerIceRestart(
+    peer: LocalPeerKind,
+    reason: 'checking' | 'disconnected' | 'failed'
+  ) {
     const recovery = this.getRecoveryState(peer)
     logWarn('rtc', 'requesting peer ice restart', {
       peer,
@@ -641,7 +667,11 @@ export class ConferenceClient {
     this.clearRecoveryTimer('publisher')
     this.pendingPublisherCandidates = []
     this.publisherPc?.close()
-    this.publisherPc = this.createPeerConnection(this.startOptions.iceServers, 'publisher', transportMode)
+    this.publisherPc = this.createPeerConnection(
+      this.startOptions.iceServers,
+      'publisher',
+      transportMode
+    )
     this.audioTransceiver = null
     this.cameraTransceiver = null
     this.screenTransceiver = null
@@ -673,7 +703,11 @@ export class ConferenceClient {
     this.clearRecoveryTimer('subscriber')
     this.pendingSubscriberCandidates = []
     this.subscriberPc?.close()
-    this.subscriberPc = this.createPeerConnection(this.startOptions.iceServers, 'subscriber', transportMode)
+    this.subscriberPc = this.createPeerConnection(
+      this.startOptions.iceServers,
+      'subscriber',
+      transportMode
+    )
     this.remoteStreams.clear()
     this.events.onRemoteStreamsReset?.()
     this.emitDiagnostics()
@@ -692,15 +726,24 @@ export class ConferenceClient {
     reason: RTCIceConnectionState | 'track-unmuted' | 'track-attached-1s' | 'track-attached-5s'
   ) {
     if (
-      !['checking', 'connected', 'disconnected', 'failed', 'track-unmuted', 'track-attached-1s', 'track-attached-5s'].includes(
-        reason
-      )
+      ![
+        'checking',
+        'connected',
+        'disconnected',
+        'failed',
+        'track-unmuted',
+        'track-attached-1s',
+        'track-attached-5s'
+      ].includes(reason)
     ) {
       return
     }
 
     try {
-      const health = await this.readPeerHealth(pc, this.getRecoveryState(peer).hadSuccessfulTransport)
+      const health = await this.readPeerHealth(
+        pc,
+        this.getRecoveryState(peer).hadSuccessfulTransport
+      )
 
       if (!health.hasSelectedCandidatePair) {
         logInfo('rtc', 'peer stats snapshot', {
@@ -734,7 +777,12 @@ export class ConferenceClient {
     }
   }
 
-  private sendSlotUpdate(kind: SlotKind, enabled: boolean, publishing: boolean, trackBound: boolean) {
+  private sendSlotUpdate(
+    kind: SlotKind,
+    enabled: boolean,
+    publishing: boolean,
+    trackBound: boolean
+  ) {
     this.sendSignal<SlotUpdatedPayload>({
       type: 'media.slot.updated',
       payload: {
@@ -757,7 +805,9 @@ export class ConferenceClient {
 
     this.makingPublisherOffer = true
     try {
-      const offer = await this.publisherPc.createOffer(iceRestart ? { iceRestart: true } : undefined)
+      const offer = await this.publisherPc.createOffer(
+        iceRestart ? { iceRestart: true } : undefined
+      )
       await this.publisherPc.setLocalDescription(offer)
       this.sendSignal<SessionDescriptionPayload>({
         type: 'publisher.offer',
@@ -858,7 +908,10 @@ export class ConferenceClient {
     return peer === 'publisher' ? this.publisherRecovery : this.subscriberRecovery
   }
 
-  private async readPeerHealth(pc: RTCPeerConnection, hadSuccessfulTransport: boolean): Promise<PeerHealthSnapshot> {
+  private async readPeerHealth(
+    pc: RTCPeerConnection,
+    hadSuccessfulTransport: boolean
+  ): Promise<PeerHealthSnapshot> {
     const report = await pc.getStats()
     let selectedPair: RTCStats | null = null
     let transportStat: RTCStats | null = null
@@ -922,8 +975,12 @@ export class ConferenceClient {
       bytesReceived?: number
       bytesSent?: number
     }
-    const localCandidate = pair.localCandidateId ? (candidates.get(pair.localCandidateId) ?? null) : null
-    const remoteCandidate = pair.remoteCandidateId ? (candidates.get(pair.remoteCandidateId) ?? null) : null
+    const localCandidate = pair.localCandidateId
+      ? (candidates.get(pair.localCandidateId) ?? null)
+      : null
+    const remoteCandidate = pair.remoteCandidateId
+      ? (candidates.get(pair.remoteCandidateId) ?? null)
+      : null
     const totalBytes = (pair.bytesReceived ?? 0) + (pair.bytesSent ?? 0)
 
     return {
@@ -949,7 +1006,11 @@ function createPeerRecoveryState(): PeerRuntimeRecoveryState {
   }
 }
 
-function syncPreviewTrack(stream: MediaStream, kind: 'audio' | 'video', nextTrack: MediaStreamTrack | null) {
+function syncPreviewTrack(
+  stream: MediaStream,
+  kind: 'audio' | 'video',
+  nextTrack: MediaStreamTrack | null
+) {
   for (const track of stream.getTracks()) {
     if (track.kind === kind && track !== nextTrack) {
       stream.removeTrack(track)

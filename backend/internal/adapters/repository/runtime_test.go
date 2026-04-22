@@ -15,4 +15,3 @@ func TestHumanRoomIDGeneratorFormat(t *testing.T) {
 		t.Fatalf("expected room id %q to match adjective-noun-number format", roomID)
 	}
 }
-

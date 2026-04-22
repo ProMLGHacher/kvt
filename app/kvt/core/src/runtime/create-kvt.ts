@@ -22,8 +22,9 @@ export function createKvt(options: KvtOptions = {}): KvtRuntime {
   const viewModels = options.viewModels ?? new ViewModelStore()
 
   for (const module of options.modules ?? []) {
-    container.install(module)
+    container.install(module, { initializeEagerSingletons: false })
   }
+  container.initializeEagerSingletons()
 
   return {
     container,

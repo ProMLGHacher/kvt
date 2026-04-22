@@ -1,4 +1,11 @@
-import { Inject, Module, Provides, Singleton, ViewModelProvider, createModuleFromClass } from '@kvt/core'
+import {
+  Inject,
+  Module,
+  Provides,
+  Singleton,
+  ViewModelProvider,
+  createModuleFromClass
+} from '@kvt/core'
 import { DemoReportsRepository } from './data'
 import { LoadReportSummaryUseCase, reportsRepositoryToken, type ReportsRepository } from './domain'
 import { ReportsViewModel } from './presentation'
@@ -12,7 +19,7 @@ import { ReportsViewModel } from './presentation'
 @Module({ name: 'ReportsModule' })
 class ReportsModule {
   @Provides(reportsRepositoryToken)
-  @Singleton()
+  @Singleton({ lazy: true })
   static provideReportsRepository(): ReportsRepository {
     return new DemoReportsRepository()
   }
@@ -26,7 +33,9 @@ class ReportsModule {
 
   @Provides(ReportsViewModel)
   @ViewModelProvider()
-  static provideReportsViewModel(@Inject(LoadReportSummaryUseCase) loadSummary: LoadReportSummaryUseCase) {
+  static provideReportsViewModel(
+    @Inject(LoadReportSummaryUseCase) loadSummary: LoadReportSummaryUseCase
+  ) {
     return new ReportsViewModel(loadSummary)
   }
 }

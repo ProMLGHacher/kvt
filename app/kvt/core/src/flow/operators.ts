@@ -23,9 +23,18 @@ export function map<T, R>(source: Flow<T>, mapper: (value: T) => R): Flow<R> {
 /**
  * Skips repeated values. Object.is is used by default to mirror React snapshots.
  */
-export function distinctUntilChanged<T>(source: StateFlow<T>, equals?: (left: T, right: T) => boolean): StateFlow<T>
-export function distinctUntilChanged<T>(source: Flow<T>, equals?: (left: T, right: T) => boolean): Flow<T>
-export function distinctUntilChanged<T>(source: Flow<T>, equals: (left: T, right: T) => boolean = Object.is): Flow<T> {
+export function distinctUntilChanged<T>(
+  source: StateFlow<T>,
+  equals?: (left: T, right: T) => boolean
+): StateFlow<T>
+export function distinctUntilChanged<T>(
+  source: Flow<T>,
+  equals?: (left: T, right: T) => boolean
+): Flow<T>
+export function distinctUntilChanged<T>(
+  source: Flow<T>,
+  equals: (left: T, right: T) => boolean = Object.is
+): Flow<T> {
   if (isStateFlow(source)) {
     const state = new MutableStateFlow(source.value)
     source.subscribe((value) => {

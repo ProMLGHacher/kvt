@@ -1,6 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap");
-@import "tailwindcss";
-@import "@kvt/theme/styles.css";
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+@import 'tailwindcss';
+@import '@kvt/theme/styles.css';
 
 @layer base {
   * {
@@ -16,9 +16,9 @@
   body {
     @apply bg-background font-sans text-foreground antialiased;
     font-feature-settings:
-      "ss01" 1,
-      "ss03" 1,
-      "cv01" 1;
+      'ss01' 1,
+      'ss03' 1,
+      'cv01' 1;
     text-rendering: optimizeLegibility;
   }
 

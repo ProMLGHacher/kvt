@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pion/rtcp"
 	"github.com/araik/codex-webrtc/project/backend/internal/domain"
 	"github.com/araik/codex-webrtc/project/backend/internal/protocol"
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
 )
@@ -56,13 +56,13 @@ type SourceTrack struct {
 }
 
 type SFU struct {
-	mu          sync.RWMutex
-	api         *webrtc.API
-	emitter     SignalEmitter
-	lookup      SessionLookup
-	publishers  map[string]*PublisherPeer
-	subscribers map[string]*SubscriberPeer
-	sources     map[participantSlotKey]*SourceTrack
+	mu           sync.RWMutex
+	api          *webrtc.API
+	emitter      SignalEmitter
+	lookup       SessionLookup
+	publishers   map[string]*PublisherPeer
+	subscribers  map[string]*SubscriberPeer
+	sources      map[participantSlotKey]*SourceTrack
 	nextSourceID uint64
 }
 

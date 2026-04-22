@@ -28,13 +28,21 @@ export function decidePeerRecoveryAction({
     }
 
     if (iceConnectionState === 'disconnected') {
-      if (health.hadSuccessfulTransport || health.hasSelectedCandidatePair || health.totalBytes > 0) {
+      if (
+        health.hadSuccessfulTransport ||
+        health.hasSelectedCandidatePair ||
+        health.totalBytes > 0
+      ) {
         return 'restart'
       }
       return 'fallback-relay'
     }
 
-    if (iceConnectionState === 'checking' && !health.hasSelectedCandidatePair && health.totalBytes === 0) {
+    if (
+      iceConnectionState === 'checking' &&
+      !health.hasSelectedCandidatePair &&
+      health.totalBytes === 0
+    ) {
       return 'fallback-relay'
     }
 
@@ -45,7 +53,11 @@ export function decidePeerRecoveryAction({
     return 'restart'
   }
 
-  if (iceConnectionState === 'checking' && !health.hasSelectedCandidatePair && health.totalBytes === 0) {
+  if (
+    iceConnectionState === 'checking' &&
+    !health.hasSelectedCandidatePair &&
+    health.totalBytes === 0
+  ) {
     return 'restart'
   }
 

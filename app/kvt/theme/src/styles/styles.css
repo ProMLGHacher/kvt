@@ -68,9 +68,9 @@
   --color-destructive: var(--destructive);
   --color-info: var(--info);
   --color-on-feedback: var(--on-feedback);
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "SFMono-Regular", ui-monospace, monospace;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'SFMono-Regular', ui-monospace, monospace;
   --leading-tight: 1.2;
   --leading-snug: 1.35;
   --leading-normal: 1.55;

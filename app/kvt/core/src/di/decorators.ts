@@ -1,6 +1,7 @@
 import { defineModule, type KvtModule } from './module'
 import { provideFactory, provideSingleton, provideViewModel, type Provider } from './provider'
 import type { ServiceIdentifier } from './token'
+import type { SingletonOptions } from './container'
 
 type ProviderKind = 'factory' | 'singleton' | 'viewModel'
 type ModuleClass = abstract new (...args: never[]) => unknown
@@ -14,6 +15,7 @@ interface ProviderMetadata {
   readonly propertyKey: string | symbol
   identifier?: ServiceIdentifier<unknown>
   kind: ProviderKind
+  singletonOptions?: SingletonOptions
   dependencies: ServiceIdentifier<unknown>[]
 }
 
@@ -44,11 +46,16 @@ export function Provides<TService>(identifier: ServiceIdentifier<TService>): Met
 }
 
 /**
- * Makes a provider lazy singleton. The instance is created on first resolve.
+ * Makes a provider singleton.
+ *
+ * Singletons are eager by default. Pass `{ lazy: true }` to create the instance
+ * only when it is first resolved.
  */
-export function Singleton(): MethodDecorator {
+export function Singleton(options: SingletonOptions = {}): MethodDecorator {
   return (target, propertyKey) => {
-    getProviderMetadata(target, propertyKey).kind = 'singleton'
+    const metadata = getProviderMetadata(target, propertyKey)
+    metadata.kind = 'singleton'
+    metadata.singletonOptions = options
   }
 }
 
@@ -96,7 +103,10 @@ export function createModuleFromClass(moduleClass: ModuleClass): KvtModule {
   })
 }
 
-function createProviderFromMetadata(moduleClass: ModuleClass, metadata: ProviderMetadata): Provider {
+function createProviderFromMetadata(
+  moduleClass: ModuleClass,
+  metadata: ProviderMetadata
+): Provider {
   if (!metadata.identifier) {
     throw new Error(`Provider "${String(metadata.propertyKey)}" is missing @Provides(...)`)
   }
@@ -109,7 +119,12 @@ function createProviderFromMetadata(moduleClass: ModuleClass, metadata: Provider
   const factory = (...dependencies: unknown[]) => providerMethod(...dependencies)
 
   if (metadata.kind === 'singleton') {
-    return provideSingleton(metadata.identifier, metadata.dependencies, factory)
+    return provideSingleton(
+      metadata.identifier,
+      metadata.dependencies,
+      factory,
+      metadata.singletonOptions
+    )
   }
 
   if (metadata.kind === 'viewModel') {

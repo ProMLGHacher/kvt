@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ConferenceClient, type ConferenceDiagnostics } from '@/lib/rtc/conference-client'
 import { conferenceApi } from '@/lib/api'
-import { clearClientLogs, exportClientLogsText, getClientLogs, logError, logInfo, subscribeClientLogs } from '@/lib/logger'
+import {
+  clearClientLogs,
+  exportClientLogsText,
+  getClientLogs,
+  logError,
+  logInfo,
+  subscribeClientLogs
+} from '@/lib/logger'
 import type {
   JoinResponse,
   ParticipantState,
@@ -107,8 +114,12 @@ export function RoomPage() {
     )
 
     setMicEnabled(localParticipant?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true)
-    setCameraEnabled(localParticipant?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false)
-    setScreenEnabled(localParticipant?.slots.find((slot) => slot.kind === 'screen')?.enabled ?? false)
+    setCameraEnabled(
+      localParticipant?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false
+    )
+    setScreenEnabled(
+      localParticipant?.slots.find((slot) => slot.kind === 'screen')?.enabled ?? false
+    )
   }, [activeSession])
 
   useEffect(() => {
@@ -119,20 +130,27 @@ export function RoomPage() {
     const localParticipant = activeSession.snapshot.participants.find(
       (participant) => participant.id === activeSession.participantId
     )
-    const sessionMicEnabled = localParticipant?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true
-    const sessionCameraEnabled = localParticipant?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false
+    const sessionMicEnabled =
+      localParticipant?.slots.find((slot) => slot.kind === 'audio')?.enabled ?? true
+    const sessionCameraEnabled =
+      localParticipant?.slots.find((slot) => slot.kind === 'camera')?.enabled ?? false
 
     const client = new ConferenceClient({
       onSnapshot: (snapshot) => {
         setParticipants(indexParticipants(snapshot))
         setRemoteStreams((current) => {
-          const activeParticipantIds = new Set(snapshot.participants.map((participant) => participant.id))
+          const activeParticipantIds = new Set(
+            snapshot.participants.map((participant) => participant.id)
+          )
           return Object.fromEntries(
-            Object.entries(current).filter(([participantId]) => activeParticipantIds.has(participantId))
+            Object.entries(current).filter(([participantId]) =>
+              activeParticipantIds.has(participantId)
+            )
           )
         })
       },
-      onSlotUpdated: (payload) => setParticipants((current) => patchParticipantSlot(current, payload)),
+      onSlotUpdated: (payload) =>
+        setParticipants((current) => patchParticipantSlot(current, payload)),
       onRemoteTrack: (participantId, _kind, stream) => {
         setRemoteStreams((current) => ({ ...current, [participantId]: stream }))
       },
@@ -180,9 +198,15 @@ export function RoomPage() {
     ? participantList.filter((participant) => participant.id !== activeSession.participantId)
     : []
   const participantNames = participantList.map((participant) => participant.displayName).join(', ')
-  const visibleRemoteStreams = otherParticipants.filter((participant) => Boolean(remoteStreams[participant.id])).length
+  const visibleRemoteStreams = otherParticipants.filter((participant) =>
+    Boolean(remoteStreams[participant.id])
+  ).length
 
-  async function handleJoin(payload: { displayName: string; micEnabled: boolean; cameraEnabled: boolean }) {
+  async function handleJoin(payload: {
+    displayName: string
+    micEnabled: boolean
+    cameraEnabled: boolean
+  }) {
     setPrejoinLoading(true)
     setRoomError(null)
     setActionStatus('Starting room session…')
@@ -348,18 +372,27 @@ export function RoomPage() {
             <Badge className="w-fit">Room setup</Badge>
             <CardTitle>Join room {roomId}</CardTitle>
             <CardDescription>
-              Open the room directly, choose your microphone and camera preferences, then enter from here.
+              Open the room directly, choose your microphone and camera preferences, then enter from
+              here.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             {roomLoading ? <p>Loading room details…</p> : null}
-            {!roomLoading && room ? <p>Participants currently inside: {room.participantCount}</p> : null}
-            {!roomLoading && room ? <p>Joining as: {requestedRole === 'host' ? 'Host' : 'Participant'}</p> : null}
+            {!roomLoading && room ? (
+              <p>Participants currently inside: {room.participantCount}</p>
+            ) : null}
+            {!roomLoading && room ? (
+              <p>Joining as: {requestedRole === 'host' ? 'Host' : 'Participant'}</p>
+            ) : null}
             {roomError ? <p className="text-red-600">{roomError}</p> : null}
           </CardContent>
         </Card>
 
-        <PrejoinModal open={!roomLoading && Boolean(room)} loading={prejoinLoading} onJoin={handleJoin} />
+        <PrejoinModal
+          open={!roomLoading && Boolean(room)}
+          loading={prejoinLoading}
+          onJoin={handleJoin}
+        />
       </main>
     )
   }
@@ -371,8 +404,8 @@ export function RoomPage() {
           <Badge className="bg-accent text-accent-foreground">Room live</Badge>
           <h1 className="mt-4 font-display text-3xl font-semibold">Voice-first room {roomId}</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Join happens on the room URL itself, audio stays first, and camera or screen share can be added without
-            replacing the live call.
+            Join happens on the room URL itself, audio stays first, and camera or screen share can
+            be added without replacing the live call.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -388,8 +421,8 @@ export function RoomPage() {
           <CardHeader>
             <CardTitle className="text-red-700">Media Capture Is Blocked On This Origin</CardTitle>
             <CardDescription className="text-red-700/80">
-              Open the app on `http://localhost:8023` or over HTTPS if you want microphone, camera, and screen sharing
-              to work in the browser.
+              Open the app on `http://localhost:8023` or over HTTPS if you want microphone, camera,
+              and screen sharing to work in the browser.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -399,8 +432,8 @@ export function RoomPage() {
         <CardHeader>
           <CardTitle>What To Report</CardTitle>
           <CardDescription>
-            These values are meant for debugging in plain language: tell me what badges you see here if something looks
-            wrong.
+            These values are meant for debugging in plain language: tell me what badges you see here
+            if something looks wrong.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
@@ -451,15 +484,23 @@ export function RoomPage() {
         <CardHeader>
           <CardTitle>Logs</CardTitle>
           <CardDescription>
-            Export the saved client logs from this device and send me the file. This is especially useful on phones
-            where the browser console is hard to access.
+            Export the saved client logs from this device and send me the file. This is especially
+            useful on phones where the browser console is hard to access.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-          <button className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" onClick={handleExportLogs} type="button">
+          <button
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+            onClick={handleExportLogs}
+            type="button"
+          >
             Export client logs
           </button>
-          <button className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium" onClick={handleClearLogs} type="button">
+          <button
+            className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-4 text-sm font-medium"
+            onClick={handleClearLogs}
+            type="button"
+          >
             Clear client logs
           </button>
         </CardContent>
@@ -517,10 +558,15 @@ function StatusBlock({ title, lines }: { title: string; lines: string[] }) {
 }
 
 function indexParticipants(snapshot?: RoomSnapshot): ParticipantMap {
-  return Object.fromEntries((snapshot?.participants ?? []).map((participant) => [participant.id, participant]))
+  return Object.fromEntries(
+    (snapshot?.participants ?? []).map((participant) => [participant.id, participant])
+  )
 }
 
-function patchParticipantSlot(current: ParticipantMap, payload: SlotUpdatedPayload): ParticipantMap {
+function patchParticipantSlot(
+  current: ParticipantMap,
+  payload: SlotUpdatedPayload
+): ParticipantMap {
   const participant = current[payload.participantId]
   if (!participant) {
     return current

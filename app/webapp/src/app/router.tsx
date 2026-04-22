@@ -15,7 +15,7 @@ export const appRoutes = [
     children: [
       kvtRoute({
         index: true,
-        element: <CounterScreen />,
+        element: <CounterScreen />
       }),
       kvtFeatureRoute({
         path: 'reports',

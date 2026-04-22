@@ -1,5 +1,7 @@
 node_modules
 dist
+app/docs/.vitepress/dist
+app/docs/.vitepress/cache
 coverage
 .DS_Store
 .env

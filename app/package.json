@@ -1,11 +1,17 @@
 {
-    "name": "kvt",
-    "private": true,
-    "scripts": {
-      "build": "npm run build -w webapp"
-    },
-    "workspaces": [
-      "webapp",
-      "kvt/*"
-    ]
+  "name": "kvt",
+  "private": true,
+  "scripts": {
+    "build": "npm run build -w webapp",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "workspaces": [
+    "webapp",
+    "kvt/*"
+  ],
+  "devDependencies": {
+    "vitepress": "^1.6.4"
   }
+}

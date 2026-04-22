@@ -20,9 +20,16 @@ export class ReportsViewModel extends ViewModel {
     this.loadSummary = loadSummary
   }
 
+  protected onInit() {
+    this.load()
+    return () => {
+      // The cleanup runs when the route-owned ViewModel leaves the screen.
+    }
+  }
+
   load(): void {
     this.mutableUiState.set({
-      summary: this.loadSummary.execute(),
+      summary: { ...this.loadSummary.execute(), score: 992019 },
       loadedByIntent: true
     })
   }

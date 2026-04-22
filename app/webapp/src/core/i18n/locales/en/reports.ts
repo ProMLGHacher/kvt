@@ -7,4 +7,4 @@ export default {
   generatedAt: 'Generated at',
   score: 'Health score',
   refresh: 'Refresh from ViewModel'
-}
+} as const

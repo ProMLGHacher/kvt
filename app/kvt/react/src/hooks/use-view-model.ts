@@ -4,6 +4,7 @@ import { useKvt } from './use-kvt'
 
 export interface UseViewModelOptions {
   key?: string
+  clearOnUnmount?: boolean
 }
 
 /**
@@ -11,6 +12,9 @@ export interface UseViewModelOptions {
  *
  * This follows Android's ViewModelProvider shape: UI asks for a ViewModel type,
  * the runtime store keeps it stable, and DI builds the dependency graph.
+ *
+ * By default the ViewModel is cleared when the component that owns this hook
+ * unmounts. Pass `clearOnUnmount: false` for app-level retained ViewModels.
  */
 export function useViewModel<TViewModel extends ViewModel>(
   identifier: ServiceIdentifier<TViewModel>,
@@ -18,6 +22,7 @@ export function useViewModel<TViewModel extends ViewModel>(
 ): TViewModel {
   const { container, viewModels } = useKvt()
   const key = options.key ?? describeService(identifier)
+  const clearOnUnmount = options.clearOnUnmount ?? true
   const shouldCreate = !viewModels.has(key)
   const viewModelContainer = shouldCreate ? container.createChild() : undefined
 
@@ -35,7 +40,12 @@ export function useViewModel<TViewModel extends ViewModel>(
 
   useEffect(() => {
     viewModel.initialize()
-  }, [viewModel])
+    return () => {
+      if (clearOnUnmount) {
+        viewModels.clear(key)
+      }
+    }
+  }, [clearOnUnmount, key, viewModel, viewModels])
 
   return viewModel
 }

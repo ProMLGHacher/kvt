@@ -25,7 +25,9 @@ export function createToken<T>(description: string): Token<T> {
   }
 }
 
-export function getServiceKey(identifier: ServiceIdentifier<unknown>): symbol | Constructor<unknown> {
+export function getServiceKey(
+  identifier: ServiceIdentifier<unknown>
+): symbol | Constructor<unknown> {
   return isToken(identifier) ? identifier.id : identifier
 }
 

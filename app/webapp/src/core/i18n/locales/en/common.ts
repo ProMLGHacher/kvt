@@ -15,7 +15,8 @@ export default {
     action: 'Send intent',
     effectTitle: 'SharedFlow effect',
     effectIdle: 'Waiting for a milestone event.',
-    effectDescription: 'Every fifth click emits a one-off event. State stays in StateFlow, effects stay in SharedFlow.',
+    effectDescription:
+      'Every fifth click emits a one-off event. State stays in StateFlow, effects stay in SharedFlow.',
     dataTitle: 'Data',
     dataText: 'InMemoryCounterRepository owns the source StateFlow.',
     domainTitle: 'Domain',
@@ -30,4 +31,4 @@ export default {
     title: 'Downloading feature chunk...',
     description: 'The main bundle does not include this feature. It loads when the route opens.'
   }
-}
+} as const

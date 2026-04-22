@@ -1,7 +1,7 @@
 import { KvtLink, KvtOutlet } from '@kvt/react'
 import { useKvtTheme } from '@kvt/theme'
 import { useTranslation } from 'react-i18next'
-import { setLanguage, supportedLanguages, type SupportedLanguage } from './app/i18n/config'
+import { setLanguage, supportedLanguages, type SupportedLanguage } from './core/i18n/config'
 
 export function AppLayout() {
   const { t, i18n } = useTranslation('common')
@@ -10,7 +10,10 @@ export function AppLayout() {
   return (
     <main className="h-screen overflow-hidden bg-background text-foreground">
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <KvtLink className="text-left text-sm font-semibold uppercase tracking-[0.24em] text-primary" to="/">
+        <KvtLink
+          className="text-left text-sm font-semibold uppercase tracking-[0.24em] text-primary"
+          to="/"
+        >
           {t('nav.brand')}
         </KvtLink>
         <div className="flex flex-wrap items-center justify-end gap-3 text-sm">

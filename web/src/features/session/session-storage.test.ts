@@ -44,13 +44,10 @@ describe('session storage', () => {
   })
 
   it('normalizes stored room sessions when loading older saved data', () => {
-    storeJoinSession(
-      session,
-      {
-        origin: 'http://kvt.araik.dev',
-        protocol: 'http:'
-      }
-    )
+    storeJoinSession(session, {
+      origin: 'http://kvt.araik.dev',
+      protocol: 'http:'
+    })
 
     const loaded = loadJoinSession('room-1', {
       origin: 'https://kvt.araik.dev',

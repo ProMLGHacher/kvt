@@ -8,16 +8,25 @@ export interface StoredJoinSession extends JoinResponse {
 
 type LocationLike = Pick<Location, 'origin' | 'protocol'>
 
-export function storeJoinSession(session: JoinResponse, locationLike: LocationLike = window.location) {
-  const storedSession = normalizeStoredJoinSession({
-    ...session,
-    roomJoinUrl: `${locationLike.origin}/rooms/${session.roomId}`
-  }, locationLike)
+export function storeJoinSession(
+  session: JoinResponse,
+  locationLike: LocationLike = window.location
+) {
+  const storedSession = normalizeStoredJoinSession(
+    {
+      ...session,
+      roomJoinUrl: `${locationLike.origin}/rooms/${session.roomId}`
+    },
+    locationLike
+  )
 
   sessionStorage.setItem(SESSION_PREFIX + session.roomId, JSON.stringify(storedSession))
 }
 
-export function loadJoinSession(roomId: string, locationLike: LocationLike = window.location): StoredJoinSession | null {
+export function loadJoinSession(
+  roomId: string,
+  locationLike: LocationLike = window.location
+): StoredJoinSession | null {
   const raw = sessionStorage.getItem(SESSION_PREFIX + roomId)
   if (!raw) {
     return null
@@ -39,7 +48,10 @@ export function clearJoinSession(roomId: string) {
   sessionStorage.removeItem(SESSION_PREFIX + roomId)
 }
 
-export function normalizeSessionWebSocketURL(wsUrl: string, locationLike: LocationLike = window.location) {
+export function normalizeSessionWebSocketURL(
+  wsUrl: string,
+  locationLike: LocationLike = window.location
+) {
   try {
     const resolved = new URL(wsUrl, locationLike.origin)
 

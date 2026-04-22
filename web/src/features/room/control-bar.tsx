@@ -25,20 +25,37 @@ export function ControlBar({
 }: ControlBarProps) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 rounded-[28px] border border-border/60 bg-card/90 p-3 shadow-xl backdrop-blur">
-      <ControlButton active={micEnabled} label={micEnabled ? 'Mic live' : 'Mic muted'} onClick={onMicToggle}>
+      <ControlButton
+        active={micEnabled}
+        label={micEnabled ? 'Mic live' : 'Mic muted'}
+        onClick={onMicToggle}
+      >
         <Mic className="h-4 w-4" />
       </ControlButton>
-      <ControlButton active={cameraEnabled} label={cameraEnabled ? 'Camera on' : 'Camera off'} onClick={onCameraToggle}>
+      <ControlButton
+        active={cameraEnabled}
+        label={cameraEnabled ? 'Camera on' : 'Camera off'}
+        onClick={onCameraToggle}
+      >
         <Camera className="h-4 w-4" />
       </ControlButton>
-      <ControlButton active={screenEnabled} label={screenEnabled ? 'Sharing screen' : 'Share screen'} onClick={onScreenToggle}>
+      <ControlButton
+        active={screenEnabled}
+        label={screenEnabled ? 'Sharing screen' : 'Share screen'}
+        onClick={onScreenToggle}
+      >
         <MonitorUp className="h-4 w-4" />
       </ControlButton>
       <Button type="button" variant="outline" className="rounded-2xl" onClick={onCopyLink}>
         <Copy className="mr-2 h-4 w-4" />
         Copy link
       </Button>
-      <Button type="button" variant="ghost" className="rounded-2xl text-destructive" onClick={onLeave}>
+      <Button
+        type="button"
+        variant="ghost"
+        className="rounded-2xl text-destructive"
+        onClick={onLeave}
+      >
         <PhoneOff className="mr-2 h-4 w-4" />
         Leave
       </Button>

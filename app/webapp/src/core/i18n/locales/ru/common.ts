@@ -15,7 +15,8 @@ export default {
     action: 'Отправить intent',
     effectTitle: 'SharedFlow эффект',
     effectIdle: 'Ждем milestone-событие.',
-    effectDescription: 'Каждый пятый клик отправляет one-off event. State остается в StateFlow, эффекты в SharedFlow.',
+    effectDescription:
+      'Каждый пятый клик отправляет one-off event. State остается в StateFlow, эффекты в SharedFlow.',
     dataTitle: 'Data',
     dataText: 'InMemoryCounterRepository хранит source StateFlow.',
     domainTitle: 'Domain',
@@ -32,4 +33,4 @@ export default {
     title: 'Загружаем feature chunk...',
     description: 'Главный bundle не содержит эту фичу, она подтягивается при открытии маршрута.'
   }
-}
+} as const

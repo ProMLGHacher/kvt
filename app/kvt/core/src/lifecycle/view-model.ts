@@ -3,6 +3,9 @@ import type { Disposable } from './disposable'
 
 /**
  * Presentation state holder inspired by Android ViewModel.
+ *
+ * ViewModels expose immutable UI state, receive user intents from the UI, call
+ * use cases and own cleanup for long-lived presentation work.
  */
 export abstract class ViewModel {
   private readonly disposables = new CompositeDisposable()
@@ -11,8 +14,10 @@ export abstract class ViewModel {
 
   /**
    * Called once by UI adapters after the ViewModel is first resolved.
+   *
+   * Return a cleanup function or Disposable when setup starts long-lived work.
    */
-  init(): void | Disposable | (() => void) {}
+  protected onInit(): void | Disposable | (() => void) {}
 
   initialize() {
     if (this.initialized) {
@@ -20,7 +25,7 @@ export abstract class ViewModel {
     }
 
     this.initialized = true
-    const cleanup = this.init()
+    const cleanup = this.onInit()
     if (typeof cleanup === 'function') {
       this.addDisposable({ dispose: cleanup })
     } else if (cleanup) {
@@ -42,11 +47,17 @@ export abstract class ViewModel {
     return this.disposables.add(disposable)
   }
 
+  /**
+   * Override for custom cleanup before registered disposables are released.
+   */
   protected onCleared() {}
 }
 
 /**
  * Stores ViewModels by key so UI adapters can keep instances stable across renders.
+ *
+ * The store owns ViewModels until the key is cleared or the entire store is
+ * disposed, similar to Android's ViewModelStore owner boundary.
  */
 export class ViewModelStore implements Disposable {
   private readonly instances = new Map<string, ViewModel>()

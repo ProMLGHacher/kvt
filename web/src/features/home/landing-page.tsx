@@ -40,8 +40,8 @@ export function LandingPage() {
             Fast room entry, stable audio, seamless camera and screen share renegotiation.
           </h1>
           <p className="mt-5 max-w-2xl text-lg text-slate-600">
-            A Discord-style join flow on top of a custom SFU: one publisher connection, one subscriber connection,
-            and audio continuity as the primary product promise.
+            A Discord-style join flow on top of a custom SFU: one publisher connection, one
+            subscriber connection, and audio continuity as the primary product promise.
           </p>
           <div className="mt-8 flex flex-wrap gap-3 text-sm text-slate-600">
             <Badge>Single-node SFU</Badge>
@@ -55,10 +55,17 @@ export function LandingPage() {
           <Card>
             <CardHeader>
               <CardTitle>Create a room</CardTitle>
-              <CardDescription>Create a short room id and step straight into the prejoin setup.</CardDescription>
+              <CardDescription>
+                Create a short room id and step straight into the prejoin setup.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button className="w-full justify-between" size="lg" onClick={handleCreateRoom} disabled={creatingRoom}>
+              <Button
+                className="w-full justify-between"
+                size="lg"
+                onClick={handleCreateRoom}
+                disabled={creatingRoom}
+              >
                 <span className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
                   Create room
@@ -91,7 +98,8 @@ export function LandingPage() {
             <CardHeader>
               <CardTitle className="text-white">Voice-first defaults</CardTitle>
               <CardDescription className="text-slate-300">
-                Microphone is always the protected path. Camera and screen share can appear later without replacing the whole session.
+                Microphone is always the protected path. Camera and screen share can appear later
+                without replacing the whole session.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-3">

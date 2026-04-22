@@ -13,7 +13,7 @@ import (
 )
 
 type stubMediaBridge struct {
-	updateCalls []slotPreferenceCall
+	updateCalls         []slotPreferenceCall
 	removedParticipants []string
 }
 
@@ -57,7 +57,9 @@ func (m *stubMediaBridge) HandleSubscriberAnswer(string, webrtc.SessionDescripti
 	return nil, nil
 }
 
-func (m *stubMediaBridge) HandleSubscriberCandidate(string, webrtc.ICECandidateInit) error { return nil }
+func (m *stubMediaBridge) HandleSubscriberCandidate(string, webrtc.ICECandidateInit) error {
+	return nil
+}
 
 type stubEmitter struct {
 	messages map[string][]protocol.Envelope

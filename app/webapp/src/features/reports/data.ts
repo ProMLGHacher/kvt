@@ -9,7 +9,7 @@ export class DemoReportsRepository implements ReportsRepository {
         minute: '2-digit',
         second: '2-digit'
       }).format(new Date()),
-      score: 94
+      score: 98
     }
   }
 }

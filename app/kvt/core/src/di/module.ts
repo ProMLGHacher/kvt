@@ -16,7 +16,7 @@ export type LazyModuleLoader = () => Promise<LoadedModule>
  * Android-like module declaration.
  *
  * A module is only a composition root: it describes providers and included
- * modules, while object creation stays lazy until a service is requested.
+ * modules. Singleton providers are eager unless registered with `{ lazy: true }`.
  */
 export function defineModule(definition: ModuleDefinition): KvtModule {
   return (container) => {

@@ -10,7 +10,11 @@ import { logInfo, logWarn } from '@/lib/logger'
 interface PrejoinModalProps {
   open: boolean
   loading?: boolean
-  onJoin: (payload: { displayName: string; micEnabled: boolean; cameraEnabled: boolean }) => Promise<void> | void
+  onJoin: (payload: {
+    displayName: string
+    micEnabled: boolean
+    cameraEnabled: boolean
+  }) => Promise<void> | void
 }
 
 export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
@@ -58,7 +62,9 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
       if (!micEnabled && !cameraEnabled) {
         releasePreviewTracks(previewVideoTrackRef, previewAudioTrackRef, previewStreamRef)
         setPreviewStream(null)
-        setPreviewStatus('Microphone and camera are both off. You can still join muted and add them later.')
+        setPreviewStatus(
+          'Microphone and camera are both off. You can still join muted and add them later.'
+        )
         return
       }
 
@@ -117,15 +123,14 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
           return
         }
 
-        const nextPreviewStream = buildPreviewStream(previewStreamRef.current, previewVideoTrackRef.current)
+        const nextPreviewStream = buildPreviewStream(
+          previewStreamRef.current,
+          previewVideoTrackRef.current
+        )
         previewStreamRef.current = nextPreviewStream
         setPreviewStream(nextPreviewStream)
         setPreviewStatus(
-          describePreview(
-            nextPreviewStream ?? new MediaStream(),
-            micEnabled,
-            cameraEnabled
-          )
+          describePreview(nextPreviewStream ?? new MediaStream(), micEnabled, cameraEnabled)
         )
       } catch (error) {
         if (cancelled) {
@@ -169,7 +174,13 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
         <div className="overflow-hidden rounded-[24px] border border-border/60 bg-slate-950 p-4 text-slate-50">
           <div className="overflow-hidden rounded-[18px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.24),_transparent_42%),linear-gradient(180deg,_rgba(15,23,42,0.94),_rgba(2,6,23,0.98))]">
             {previewStream && cameraEnabled ? (
-              <video ref={videoRef} autoPlay muted playsInline className="h-64 w-full object-cover" />
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="h-64 w-full object-cover"
+              />
             ) : (
               <div className="flex h-64 items-center justify-center">
                 <div className="text-center">
@@ -180,13 +191,29 @@ export function PrejoinModal({ open, loading, onJoin }: PrejoinModalProps) {
             )}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Badge className={window.isSecureContext ? 'bg-emerald-500/20 text-emerald-100' : 'bg-red-500/20 text-red-100'}>
+            <Badge
+              className={
+                window.isSecureContext
+                  ? 'bg-emerald-500/20 text-emerald-100'
+                  : 'bg-red-500/20 text-red-100'
+              }
+            >
               {window.isSecureContext ? 'Secure context' : 'Open on localhost or HTTPS'}
             </Badge>
-            <Badge className={micEnabled ? 'bg-emerald-500/20 text-emerald-100' : 'bg-slate-500/30 text-slate-200'}>
+            <Badge
+              className={
+                micEnabled ? 'bg-emerald-500/20 text-emerald-100' : 'bg-slate-500/30 text-slate-200'
+              }
+            >
               {micEnabled ? 'Mic requested' : 'Mic off'}
             </Badge>
-            <Badge className={cameraEnabled ? 'bg-emerald-500/20 text-emerald-100' : 'bg-slate-500/30 text-slate-200'}>
+            <Badge
+              className={
+                cameraEnabled
+                  ? 'bg-emerald-500/20 text-emerald-100'
+                  : 'bg-slate-500/30 text-slate-200'
+              }
+            >
               {cameraEnabled ? 'Camera preview requested' : 'Camera off'}
             </Badge>
           </div>

@@ -39,7 +39,11 @@ export function RoomJoinPage() {
     }
   }, [roomId])
 
-  async function handleJoin(payload: { displayName: string; micEnabled: boolean; cameraEnabled: boolean }) {
+  async function handleJoin(payload: {
+    displayName: string
+    micEnabled: boolean
+    cameraEnabled: boolean
+  }) {
     setJoining(true)
     try {
       const result = await conferenceApi.joinRoom(roomId, {

@@ -30,7 +30,10 @@ export function useInstallModule(key: string, loader: LazyModuleLoader): ModuleI
       })
       .catch((error: unknown) => {
         if (active) {
-          setState({ ready: false, error: error instanceof Error ? error : new Error(String(error)) })
+          setState({
+            ready: false,
+            error: error instanceof Error ? error : new Error(String(error))
+          })
         }
       })
 

@@ -3,7 +3,10 @@ import type { Disposable } from '../lifecycle/disposable'
 import type { Flow, FlowListener, SharedFlow } from './types'
 
 /**
- * Mutable one-off event stream. It does not replay old values to new subscribers.
+ * Mutable one-off event stream.
+ *
+ * SharedFlow is intended for effects such as toast messages, navigation events
+ * or analytics pings. It does not replay old values to new subscribers.
  */
 export class MutableSharedFlow<T> implements Flow<T> {
   private listeners = new Set<FlowListener<T>>()

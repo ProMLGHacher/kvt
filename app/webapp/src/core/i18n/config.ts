@@ -4,15 +4,15 @@ import { initReactI18next } from 'react-i18next'
 
 export const supportedLanguages = ['ru', 'en'] as const
 export type SupportedLanguage = (typeof supportedLanguages)[number]
+export const defaultNS = 'common' as const
 
 const languageStorageKey = 'webapp.language'
 
 /**
- * Webapp-owned i18n setup.
+ * Core i18n runtime for this app.
  *
- * We use i18next/react-i18next as the industry-standard runtime and lazy-load
- * locale namespaces through dynamic imports so feature translations can split
- * with feature code.
+ * i18next owns translation loading; React only consumes it through the official
+ * initReactI18next plugin and the regular useTranslation hook.
  */
 export const i18n = i18next
   .use(
@@ -31,8 +31,8 @@ export function initI18n() {
     lng: getInitialLanguage(),
     fallbackLng: 'ru',
     supportedLngs: [...supportedLanguages],
-    defaultNS: 'common',
-    ns: ['common'],
+    defaultNS,
+    ns: [defaultNS],
     partialBundledLanguages: true,
     interpolation: {
       escapeValue: false

@@ -1,8 +1,11 @@
 import type { Container } from './container'
+import type { SingletonOptions } from './container'
 import type { ServiceIdentifier } from './token'
 
 export type ResolvedDependencies<TDependencies extends readonly ServiceIdentifier<unknown>[]> = {
-  [Index in keyof TDependencies]: TDependencies[Index] extends ServiceIdentifier<infer TService> ? TService : never
+  [Index in keyof TDependencies]: TDependencies[Index] extends ServiceIdentifier<infer TService>
+    ? TService
+    : never
 }
 
 export interface Provider {
@@ -15,7 +18,10 @@ export interface Provider {
  * This is useful for platform/runtime services that are created outside DI,
  * similar to binding Android framework objects in an app component.
  */
-export function provideValue<TService>(identifier: ServiceIdentifier<TService>, value: TService): Provider {
+export function provideValue<TService>(
+  identifier: ServiceIdentifier<TService>,
+  value: TService
+): Provider {
   return {
     install(container) {
       container.bindValue(identifier, value)
@@ -24,19 +30,27 @@ export function provideValue<TService>(identifier: ServiceIdentifier<TService>, 
 }
 
 /**
- * Registers a lazy singleton provider.
+ * Registers a singleton provider.
  *
- * The factory is not executed during module installation. It runs only when the
- * service is first resolved, then the same instance is reused.
+ * By default the factory is executed during module installation. Pass
+ * `{ lazy: true }` to create the instance on first resolve.
  */
-export function provideSingleton<TService, TDependencies extends readonly ServiceIdentifier<unknown>[]>(
+export function provideSingleton<
+  TService,
+  TDependencies extends readonly ServiceIdentifier<unknown>[]
+>(
   identifier: ServiceIdentifier<TService>,
   dependencies: TDependencies,
-  factory: (...dependencies: ResolvedDependencies<TDependencies>) => TService
+  factory: (...dependencies: ResolvedDependencies<TDependencies>) => TService,
+  options: SingletonOptions = {}
 ): Provider {
   return {
     install(container) {
-      container.bindSingleton(identifier, (scope) => factory(...resolveAll(scope, dependencies)))
+      container.bindSingleton(
+        identifier,
+        (scope) => factory(...resolveAll(scope, dependencies)),
+        options
+      )
     }
   }
 }
@@ -44,7 +58,10 @@ export function provideSingleton<TService, TDependencies extends readonly Servic
 /**
  * Registers a transient provider. Each resolve creates a fresh instance.
  */
-export function provideFactory<TService, TDependencies extends readonly ServiceIdentifier<unknown>[]>(
+export function provideFactory<
+  TService,
+  TDependencies extends readonly ServiceIdentifier<unknown>[]
+>(
   identifier: ServiceIdentifier<TService>,
   dependencies: TDependencies,
   factory: (...dependencies: ResolvedDependencies<TDependencies>) => TService
@@ -62,7 +79,10 @@ export function provideFactory<TService, TDependencies extends readonly ServiceI
  * ViewModels are transient in the container; `ViewModelStore` owns their actual
  * lifecycle, matching Android's ViewModelProvider behavior.
  */
-export function provideViewModel<TService, TDependencies extends readonly ServiceIdentifier<unknown>[]>(
+export function provideViewModel<
+  TService,
+  TDependencies extends readonly ServiceIdentifier<unknown>[]
+>(
   identifier: ServiceIdentifier<TService>,
   dependencies: TDependencies,
   factory: (...dependencies: ResolvedDependencies<TDependencies>) => TService
@@ -74,5 +94,7 @@ function resolveAll<TDependencies extends readonly ServiceIdentifier<unknown>[]>
   container: Container,
   dependencies: TDependencies
 ): ResolvedDependencies<TDependencies> {
-  return dependencies.map((dependency) => container.resolve(dependency)) as ResolvedDependencies<TDependencies>
+  return dependencies.map((dependency) =>
+    container.resolve(dependency)
+  ) as ResolvedDependencies<TDependencies>
 }

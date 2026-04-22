@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.git
+.DS_Store
+tmp
+*.log
+backend/bin
+backend/.cache
+app/node_modules
+app/**/dist
+app/docs/.vitepress/dist
+app/docs/.vitepress/cache
+web/node_modules
+web/dist

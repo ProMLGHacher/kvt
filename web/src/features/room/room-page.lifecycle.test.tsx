@@ -214,7 +214,11 @@ describe('RoomPage lifecycle', () => {
     })
 
     const events = conferenceClientCtor.mock.calls[0]?.[0] as {
-      onRemoteTrack?: (participantId: string, kind: 'audio' | 'camera' | 'screen', stream: MediaStream) => void
+      onRemoteTrack?: (
+        participantId: string,
+        kind: 'audio' | 'camera' | 'screen',
+        stream: MediaStream
+      ) => void
       onSnapshot?: (snapshot: {
         roomId: string
         hostParticipantId: string

@@ -4,6 +4,9 @@ import type { FlowListener, StateFlow } from './types'
 
 /**
  * Mutable state holder intended to stay private inside ViewModels or repositories.
+ *
+ * Expose `asStateFlow()` to UI code so external consumers can observe state but
+ * cannot mutate it directly.
  */
 export class MutableStateFlow<T> implements StateFlow<T> {
   private listeners = new Set<FlowListener<T>>()

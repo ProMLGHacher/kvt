@@ -1,5 +1,8 @@
 /**
- * A small lifecycle contract used by flows, ViewModels and runtime scopes.
+ * Common lifecycle cleanup contract used by flows, ViewModels and runtime scopes.
+ *
+ * If an API starts long-lived work, such as a subscription, timer, listener or
+ * socket, it should return a Disposable so the owner can stop that work later.
  */
 export interface Disposable {
   dispose(): void
@@ -7,6 +10,9 @@ export interface Disposable {
 
 /**
  * Wraps a cleanup callback and guarantees that it runs only once.
+ *
+ * Use Subscription when adapting APIs with their own cleanup names, such as
+ * unsubscribe(), removeEventListener(), abort() or close().
  */
 export class Subscription implements Disposable {
   private disposed = false
@@ -25,6 +31,9 @@ export class Subscription implements Disposable {
 
 /**
  * Owns many disposables and releases them together.
+ *
+ * This is useful for ViewModels and scopes that collect multiple subscriptions
+ * and need one deterministic cleanup point.
  */
 export class CompositeDisposable implements Disposable {
   private readonly disposables = new Set<Disposable>()
