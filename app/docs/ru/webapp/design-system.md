@@ -67,7 +67,7 @@ primitives. Они фиксируют styling и публичные имена; 
 фиче. Feature screen должен описывать смысловые panes, а дизайн-система выбирает compact, stack,
 dual или triple-pane presentation.
 
-Смотри [Адаптивные layouts](/ru/guide/adaptive-layouts).
+Смотри [Адаптивные layouts](/ru/webapp/adaptive-layouts).
 
 ## Чего здесь нет
 

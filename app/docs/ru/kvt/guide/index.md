@@ -11,7 +11,9 @@ KVT дает небольшой набор primitives, которые помог
 - `@kvt/core`: DI, lifecycle ViewModel, Flow primitives, use case contracts, result helpers.
 - `@kvt/react`: React provider, hooks, ViewModel binding, route-aware lazy feature modules.
 - `@kvt/theme`: theme tokens и React provider для light/dark/system mode.
-- `webapp/src/core/i18n`: app-owned i18next setup с typed namespaces.
+
+Project-specific i18n и design-system conventions живут в
+[webapp onboarding docs](/ru/webapp/).
 
 ## Рекомендуемая форма экрана
 

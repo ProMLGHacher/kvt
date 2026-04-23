@@ -2,21 +2,24 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'KVT',
-  description: 'Clean architecture framework for TypeScript applications',
+  description: 'KVT framework and webapp onboarding documentation',
   cleanUrls: true,
   locales: {
     root: {
       label: 'English',
       lang: 'en-US',
-      title: 'KVT',
-      description: 'Clean architecture framework for TypeScript applications',
+      title: 'KVT Docs',
+      description: 'KVT framework and webapp onboarding documentation',
       themeConfig: {
         nav: [
-          { text: 'Guide', link: '/guide/' },
-          { text: 'Reference', link: '/reference/disposable' },
+          { text: 'KVT', link: '/kvt/guide/' },
+          { text: 'Webapp', link: '/webapp/' },
           { text: 'Android Docs', link: 'https://developer.android.com/topic/architecture' }
         ],
-        sidebar: createEnglishSidebar(),
+        sidebar: {
+          '/kvt/': createEnglishKvtSidebar(),
+          '/webapp/': createEnglishWebappSidebar()
+        },
         editLink: {
           pattern: ''
         }
@@ -25,15 +28,18 @@ export default defineConfig({
     ru: {
       label: 'Русский',
       lang: 'ru-RU',
-      title: 'KVT',
-      description: 'Фреймворк clean architecture для TypeScript-приложений',
+      title: 'KVT Docs',
+      description: 'Документация KVT framework и webapp onboarding',
       themeConfig: {
         nav: [
-          { text: 'Руководство', link: '/ru/guide/' },
-          { text: 'Справочник', link: '/ru/reference/disposable' },
+          { text: 'KVT', link: '/ru/kvt/guide/' },
+          { text: 'Webapp', link: '/ru/webapp/' },
           { text: 'Android Docs', link: 'https://developer.android.com/topic/architecture' }
         ],
-        sidebar: createRussianSidebar(),
+        sidebar: {
+          '/ru/kvt/': createRussianKvtSidebar(),
+          '/ru/webapp/': createRussianWebappSidebar()
+        },
         outline: {
           label: 'На этой странице'
         },
@@ -79,77 +85,113 @@ export default defineConfig({
     },
     socialLinks: [{ icon: 'github', link: 'https://github.com' }],
     footer: {
-      message: 'Designed around Android-style clean architecture concepts.',
+      message: 'Framework docs and project onboarding live side by side.',
       copyright: 'KVT documentation'
     }
   }
 })
 
-function createEnglishSidebar() {
+function createEnglishKvtSidebar() {
   return [
     {
-      text: 'Get Started',
+      text: 'KVT Framework',
       items: [
-        { text: 'Overview', link: '/guide/' },
-        { text: 'Application Architecture', link: '/guide/architecture' },
-        { text: 'Mental Model', link: '/guide/mental-model' }
+        { text: 'Overview', link: '/kvt/guide/' },
+        { text: 'Application Architecture', link: '/kvt/guide/architecture' },
+        { text: 'Mental Model', link: '/kvt/guide/mental-model' }
       ]
     },
     {
       text: 'Core Concepts',
       items: [
-        { text: 'Dependency Injection', link: '/guide/dependency-injection' },
-        { text: 'ViewModel Lifecycle', link: '/guide/viewmodel-lifecycle' },
-        { text: 'Flows and State', link: '/guide/flows' },
-        { text: 'React Adapter', link: '/guide/react-adapter' },
-        { text: 'Internationalization', link: '/guide/i18n' },
-        { text: 'Design System', link: '/guide/design-system' },
-        { text: 'Adaptive Layouts', link: '/guide/adaptive-layouts' },
-        { text: 'Theming', link: '/guide/theming' }
+        { text: 'Dependency Injection', link: '/kvt/guide/dependency-injection' },
+        { text: 'ViewModel Lifecycle', link: '/kvt/guide/viewmodel-lifecycle' },
+        { text: 'Flows and State', link: '/kvt/guide/flows' },
+        { text: 'React Adapter', link: '/kvt/guide/react-adapter' },
+        { text: 'Theming', link: '/kvt/guide/theming' }
       ]
     },
     {
       text: 'Reference',
       items: [
-        { text: 'Disposable', link: '/reference/disposable' },
-        { text: 'ViewModel', link: '/reference/viewmodel' },
-        { text: 'Container', link: '/reference/container' },
-        { text: 'Flow', link: '/reference/flow' }
+        { text: 'Disposable', link: '/kvt/reference/disposable' },
+        { text: 'ViewModel', link: '/kvt/reference/viewmodel' },
+        { text: 'Container', link: '/kvt/reference/container' },
+        { text: 'Flow', link: '/kvt/reference/flow' }
       ]
     }
   ]
 }
 
-function createRussianSidebar() {
+function createEnglishWebappSidebar() {
   return [
     {
-      text: 'Начало',
+      text: 'Onboarding',
       items: [
-        { text: 'Обзор', link: '/ru/guide/' },
-        { text: 'Архитектура приложения', link: '/ru/guide/architecture' },
-        { text: 'Ментальная модель', link: '/ru/guide/mental-model' }
+        { text: 'Start Here', link: '/webapp/' },
+        { text: 'Architecture', link: '/webapp/architecture' },
+        { text: 'Conventions', link: '/webapp/conventions' }
+      ]
+    },
+    {
+      text: 'Product UI',
+      items: [
+        { text: 'Design System', link: '/webapp/design-system' },
+        { text: 'Internationalization', link: '/webapp/i18n' },
+        { text: 'Adaptive Layouts', link: '/webapp/adaptive-layouts' }
+      ]
+    }
+  ]
+}
+
+function createRussianKvtSidebar() {
+  return [
+    {
+      text: 'KVT framework',
+      items: [
+        { text: 'Обзор', link: '/ru/kvt/guide/' },
+        { text: 'Архитектура приложения', link: '/ru/kvt/guide/architecture' },
+        { text: 'Ментальная модель', link: '/ru/kvt/guide/mental-model' }
       ]
     },
     {
       text: 'Основные концепции',
       items: [
-        { text: 'Dependency Injection', link: '/ru/guide/dependency-injection' },
-        { text: 'Жизненный цикл ViewModel', link: '/ru/guide/viewmodel-lifecycle' },
-        { text: 'Flows и состояние', link: '/ru/guide/flows' },
-        { text: 'React adapter', link: '/ru/guide/react-adapter' },
-        { text: 'Интернационализация', link: '/ru/guide/i18n' },
-        { text: 'Дизайн-система', link: '/ru/guide/design-system' },
-        { text: 'Адаптивные layouts', link: '/ru/guide/adaptive-layouts' },
-        { text: 'Темы', link: '/ru/guide/theming' }
+        { text: 'Dependency Injection', link: '/ru/kvt/guide/dependency-injection' },
+        { text: 'Жизненный цикл ViewModel', link: '/ru/kvt/guide/viewmodel-lifecycle' },
+        { text: 'Flows и состояние', link: '/ru/kvt/guide/flows' },
+        { text: 'React adapter', link: '/ru/kvt/guide/react-adapter' },
+        { text: 'Темы', link: '/ru/kvt/guide/theming' }
       ]
     },
     {
       text: 'Справочник',
       items: [
-        { text: 'Disposable', link: '/ru/reference/disposable' },
-        { text: 'ViewModel', link: '/ru/reference/viewmodel' },
-        { text: 'Container', link: '/ru/reference/container' },
-        { text: 'Flow', link: '/ru/reference/flow' }
+        { text: 'Disposable', link: '/ru/kvt/reference/disposable' },
+        { text: 'ViewModel', link: '/ru/kvt/reference/viewmodel' },
+        { text: 'Container', link: '/ru/kvt/reference/container' },
+        { text: 'Flow', link: '/ru/kvt/reference/flow' }
+      ]
+    }
+  ]
+}
+
+function createRussianWebappSidebar() {
+  return [
+    {
+      text: 'Онбординг',
+      items: [
+        { text: 'С чего начать', link: '/ru/webapp/' },
+        { text: 'Архитектура', link: '/ru/webapp/architecture' },
+        { text: 'Конвенции', link: '/ru/webapp/conventions' }
+      ]
+    },
+    {
+      text: 'Product UI',
+      items: [
+        { text: 'Дизайн-система', link: '/ru/webapp/design-system' },
+        { text: 'Интернационализация', link: '/ru/webapp/i18n' },
+        { text: 'Адаптивные layouts', link: '/ru/webapp/adaptive-layouts' }
       ]
     }
   ]

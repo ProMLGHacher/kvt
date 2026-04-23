@@ -67,7 +67,7 @@ For responsive UX, prefer pane scaffolds over ad-hoc media queries in every feat
 screen should describe semantic panes, while the design system chooses a compact, stacked, dual or
 triple-pane presentation.
 
-See [Adaptive Layouts](/guide/adaptive-layouts).
+See [Adaptive Layouts](/webapp/adaptive-layouts).
 
 ## What is intentionally not included
 

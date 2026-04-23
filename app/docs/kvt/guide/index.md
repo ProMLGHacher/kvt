@@ -10,7 +10,9 @@ separate UI from business logic, keep data ownership explicit, and make lifecycl
 - `@kvt/core`: DI, ViewModel lifecycle, Flow primitives, use case contracts, result helpers.
 - `@kvt/react`: React provider, hooks, ViewModel binding, route-aware lazy feature modules.
 - `@kvt/theme`: theme tokens and a React provider for light/dark/system mode.
-- `webapp/src/core/i18n`: app-owned i18next setup with typed namespaces.
+
+Project-specific i18n and design-system conventions live in the
+[webapp onboarding docs](/webapp/).
 
 ## Recommended screen shape
 

@@ -1,32 +1,27 @@
-# KVT framework
+# Документация
 
-KVT — небольшой TypeScript-фреймворк для приложений в стиле clean architecture:
-dependency injection, lifecycle-aware ViewModels, observable state, feature modules, routing,
-themes и интернационализация.
+Документация разделена на два трека.
 
-Цель не в том, чтобы один-в-один скопировать Android API. Цель — перенести ту же ясность в web:
+## Документация KVT framework
 
-- UI описывает состояние и отправляет действия пользователя.
-- ViewModel владеет presentation-логикой.
-- Use case описывает бизнес-действие.
-- Repository владеет доступом к данным.
-- DI собирает граф зависимостей без ручного создания всего внутри компонентов.
-- Lifecycle cleanup явный и предсказуемый.
+Этот трек нужен, когда ты изучаешь или расширяешь framework packages:
 
-## С чего начать
+- `@kvt/core`
+- `@kvt/react`
+- `@kvt/theme`
 
-- Прочитай [Архитектуру приложения](./guide/architecture.md), чтобы понять слои.
-- Прочитай [Жизненный цикл ViewModel](./guide/viewmodel-lifecycle.md) перед созданием экранов.
-- Прочитай [Disposable](./reference/disposable.md), если непонятно, что значит cleanup в KVT.
+Начни с [обзора KVT](./kvt/guide/index.md).
 
-## В стиле Android docs
+## Документация webapp onboarding
 
-Документация специально написана в практичном стиле Android documentation: сначала концепция, потом
-рекомендованное использование, затем маленький пример.
+Этот трек нужен новым разработчикам продукта: здесь описаны conventions, feature boundaries, UI
+правила, i18n и сборка приложения.
 
-Полезные Android references:
+Начни с [онбординга webapp](./webapp/index.md).
 
-- [Guide to app architecture](https://developer.android.com/topic/architecture)
-- [ViewModel overview](https://developer.android.com/topic/libraries/architecture/viewmodel)
-- [StateFlow and SharedFlow](https://developer.android.com/kotlin/flow/stateflow-and-sharedflow)
-- [Dependency injection in Android](https://developer.android.com/training/dependency-injection)
+## Быстрые ссылки
+
+- [KVT Dependency Injection](./kvt/guide/dependency-injection.md)
+- [KVT ViewModel lifecycle](./kvt/guide/viewmodel-lifecycle.md)
+- [Архитектура webapp](./webapp/architecture.md)
+- [Конвенции webapp](./webapp/conventions.md)
