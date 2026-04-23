@@ -2,6 +2,8 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useSharedFlow, useStateFlow, useViewModel, type PropsWithVM } from '@kvt/react'
 import { useTranslation } from 'react-i18next'
 import {
+  Alert,
+  AlertDescription,
   Badge,
   Button,
   Card,
@@ -104,6 +106,12 @@ export function PrejoinModal({
           </DialogHeader>
 
           <div className="grid gap-4 sm:gap-5">
+            {uiState.error && (
+              <Alert>
+                <AlertDescription>{tx(uiState.error)}</AlertDescription>
+              </Alert>
+            )}
+
             <Field>
               <Label htmlFor="display-name">{t('prejoin.nameLabel')}</Label>
               <Input
@@ -194,7 +202,7 @@ export function PrejoinModal({
               size="lg"
               type="button"
             >
-              {t('prejoin.joinRoom')}
+              {uiState.joinButton.loading ? t('prejoin.joining') : t('prejoin.joinRoom')}
             </Button>
           </DialogFooter>
         </section>

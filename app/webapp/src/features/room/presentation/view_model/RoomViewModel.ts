@@ -8,6 +8,7 @@ import type { ClearJoinSessionUseCase } from '@capabilities/session/domain/useca
 import type { ExportClientLogsUseCase } from '@capabilities/client-logs/domain/usecases/ExportClientLogsUseCase'
 import type { ClearClientLogsUseCase } from '@capabilities/client-logs/domain/usecases/ClearClientLogsUseCase'
 import type { CopyRoomLinkUseCase } from '@features/room/domain/usecases/CopyRoomLinkUseCase'
+import type { GetRoomMetadataUseCase } from '@features/room/domain/usecases/GetRoomMetadataUseCase'
 import type { LeaveRoomUseCase } from '@features/room/domain/usecases/LeaveRoomUseCase'
 import type { ObserveRoomDiagnosticsUseCase } from '@features/room/domain/usecases/ObserveRoomDiagnosticsUseCase'
 import type { ObserveRoomSessionUseCase } from '@features/room/domain/usecases/ObserveRoomSessionUseCase'
@@ -31,6 +32,7 @@ export class RoomViewModel extends ViewModel {
 
   constructor(
     private readonly loadJoinSessionUseCase: LoadJoinSessionUseCase,
+    private readonly getRoomMetadataUseCase: GetRoomMetadataUseCase,
     private readonly connectToRoomRtcUseCase: ConnectToRoomRtcUseCase,
     private readonly observeRoomSessionUseCase: ObserveRoomSessionUseCase,
     private readonly observeRoomDiagnosticsUseCase: ObserveRoomDiagnosticsUseCase,
@@ -84,6 +86,9 @@ export class RoomViewModel extends ViewModel {
       case 'room-opened':
         void this.openRoom(event.roomId)
         break
+      case 'go-home-pressed':
+        this.effects.emit({ type: 'navigate-home' })
+        break
       case 'prejoin-completed':
         void this.enterRoom()
         break
@@ -131,21 +136,56 @@ export class RoomViewModel extends ViewModel {
     this.state.update((state) => ({
       ...state,
       roomId,
-      prejoinOpen: true,
-      status: 'idle',
+      prejoinOpen: false,
+      status: 'connecting',
       participants: [],
       localParticipantId: null,
       localStream: null,
       remoteStreams: {},
-      actionStatus: 'room.status.chooseSettings',
+      error: null,
+      actionStatus: 'room.status.checkingRoom',
       diagnostics: null
     }))
 
+    const room = await this.getRoomMetadataUseCase.execute({ roomId })
+    if (!room.ok) {
+      await this.clearJoinSessionUseCase.execute(roomId)
+      this.state.update((state) => ({
+        ...state,
+        status: 'failed',
+        prejoinOpen: false,
+        actionStatus:
+          room.error.type === 'room-not-found'
+            ? 'room.status.roomUnavailable'
+            : 'room.status.roomCheckFailed',
+        error:
+          room.error.type === 'room-not-found'
+            ? {
+                title: 'room.errors.roomUnavailable.title',
+                description: 'room.errors.roomUnavailable.description',
+                actionLabel: 'room.errors.roomUnavailable.action'
+              }
+            : {
+                title: 'room.errors.roomCheckFailed.title',
+                description: 'room.errors.roomCheckFailed.description',
+                actionLabel: 'room.errors.roomCheckFailed.action'
+              }
+      }))
+      return
+    }
+
     const storedSession = await this.loadJoinSessionUseCase.execute(roomId)
     if (storedSession.ok) {
-      this.state.update((state) => ({ ...state, prejoinOpen: false }))
       await this.connectStoredSession(storedSession.value)
+      return
     }
+
+    this.state.update((state) => ({
+      ...state,
+      status: 'idle',
+      prejoinOpen: true,
+      actionStatus: 'room.status.chooseSettings'
+    }))
   }
 
   private async enterRoom() {
@@ -244,7 +284,18 @@ export class RoomViewModel extends ViewModel {
     })
 
     if (!result.ok) {
-      this.effects.emit({ type: 'show-toast', message: 'room.toasts.mediaFailed' })
+      await this.clearJoinSessionUseCase.execute(session.roomId)
+      this.effects.emit({ type: 'show-toast', message: 'room.toasts.sessionExpired' })
+      this.state.update((state) => ({
+        ...state,
+        status: 'idle',
+        prejoinOpen: true,
+        participants: [],
+        localParticipantId: null,
+        localStream: null,
+        remoteStreams: {},
+        actionStatus: 'room.status.sessionExpired'
+      }))
       return
     }
 

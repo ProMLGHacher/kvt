@@ -70,45 +70,54 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         }
       />
 
-      <div
-        className={cn(
-          'grid min-h-0 flex-1 gap-3 sm:gap-4',
-          uiState.technicalInfoVisible ? 'xl:grid-cols-4' : 'grid-cols-1'
-        )}
-      >
-        <main
+      {uiState.error ? (
+        <RoomErrorState
+          actionLabel={tx(uiState.error.actionLabel)}
+          description={tx(uiState.error.description)}
+          title={tx(uiState.error.title)}
+          onAction={() => viewModel.onEvent({ type: 'go-home-pressed' })}
+        />
+      ) : (
+        <div
           className={cn(
-            'grid min-h-0 gap-3 sm:gap-4',
-            uiState.technicalInfoVisible && 'xl:col-span-3'
+            'grid min-h-0 flex-1 gap-3 sm:gap-4',
+            uiState.technicalInfoVisible ? 'xl:grid-cols-4' : 'grid-cols-1'
           )}
         >
-          <ParticipantGrid
-            localParticipantId={uiState.localParticipantId}
-            localStream={uiState.localStream}
-            participants={uiState.participants}
-            remoteStreams={uiState.remoteStreams}
-            t={tx}
-          />
-          <ControlBar
-            cameraEnabled={uiState.camera.enabled}
-            microphoneEnabled={uiState.microphone.enabled}
-            screenEnabled={uiState.screenShare.enabled}
-            onCamera={() => viewModel.onEvent({ type: 'camera-toggled' })}
-            onMicrophone={() => viewModel.onEvent({ type: 'microphone-toggled' })}
-            onScreen={() => viewModel.onEvent({ type: 'screen-share-toggled' })}
-            t={tx}
-          />
-        </main>
+          <main
+            className={cn(
+              'grid min-h-0 gap-3 sm:gap-4',
+              uiState.technicalInfoVisible && 'xl:col-span-3'
+            )}
+          >
+            <ParticipantGrid
+              localParticipantId={uiState.localParticipantId}
+              localStream={uiState.localStream}
+              participants={uiState.participants}
+              remoteStreams={uiState.remoteStreams}
+              t={tx}
+            />
+            <ControlBar
+              cameraEnabled={uiState.camera.enabled}
+              microphoneEnabled={uiState.microphone.enabled}
+              screenEnabled={uiState.screenShare.enabled}
+              onCamera={() => viewModel.onEvent({ type: 'camera-toggled' })}
+              onMicrophone={() => viewModel.onEvent({ type: 'microphone-toggled' })}
+              onScreen={() => viewModel.onEvent({ type: 'screen-share-toggled' })}
+              t={tx}
+            />
+          </main>
 
-        {uiState.technicalInfoVisible && (
-          <TechnicalPanel
-            diagnostics={uiState.diagnostics}
-            onClearLogs={() => viewModel.onEvent({ type: 'clear-logs-pressed' })}
-            onExportLogs={() => viewModel.onEvent({ type: 'export-logs-pressed' })}
-            t={tx}
-          />
-        )}
-      </div>
+          {uiState.technicalInfoVisible && (
+            <TechnicalPanel
+              diagnostics={uiState.diagnostics}
+              onClearLogs={() => viewModel.onEvent({ type: 'clear-logs-pressed' })}
+              onExportLogs={() => viewModel.onEvent({ type: 'export-logs-pressed' })}
+              t={tx}
+            />
+          )}
+        </div>
+      )}
 
       <PrejoinModal
         open={uiState.prejoinOpen && Boolean(uiState.roomId)}
@@ -119,6 +128,35 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
 
       <ToastViewport>{toast && <Toast>{toast}</Toast>}</ToastViewport>
     </section>
+  )
+}
+
+function RoomErrorState({
+  title,
+  description,
+  actionLabel,
+  onAction
+}: {
+  readonly title: string
+  readonly description: string
+  readonly actionLabel: string
+  readonly onAction: () => void
+}) {
+  return (
+    <Card className="grid min-h-96 place-items-center rounded-4xl">
+      <CardContent className="max-w-xl p-6 text-center sm:p-8">
+        <div className="mx-auto grid size-16 place-items-center rounded-full bg-muted text-2xl font-black text-muted-foreground">
+          !
+        </div>
+        <h2 className="mt-5 font-display text-2xl font-black tracking-tight text-surface-foreground sm:text-3xl">
+          {title}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">{description}</p>
+        <Button className="mt-6 rounded-2xl" onClick={onAction} type="button">
+          {actionLabel}
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 

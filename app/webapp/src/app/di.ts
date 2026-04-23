@@ -480,6 +480,7 @@ class VoiceModule {
   @ViewModelProvider()
   static provideRoomViewModel(
     @Inject(LoadJoinSessionUseCase) loadSession: LoadJoinSessionUseCase,
+    @Inject(GetRoomMetadataUseCase) getRoomMetadata: GetRoomMetadataUseCase,
     @Inject(ConnectToRoomRtcUseCase) connectRtc: ConnectToRoomRtcUseCase,
     @Inject(ObserveRoomSessionUseCase) observeRoom: ObserveRoomSessionUseCase,
     @Inject(ObserveRoomDiagnosticsUseCase) observeDiagnostics: ObserveRoomDiagnosticsUseCase,
@@ -494,6 +495,7 @@ class VoiceModule {
   ) {
     return new RoomViewModel(
       loadSession,
+      getRoomMetadata,
       connectRtc,
       observeRoom,
       observeDiagnostics,

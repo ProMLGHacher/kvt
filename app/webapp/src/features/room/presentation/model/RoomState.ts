@@ -15,13 +15,14 @@ export type RoomUiState = {
   readonly camera: RoomControlState
   readonly screenShare: RoomControlState
   readonly actionStatus: string
-  readonly error: string | null
+  readonly error: RoomUiError | null
   readonly diagnostics: ConferenceDiagnostics | null
   readonly technicalInfoVisible: boolean
 }
 
 export type RoomUiAction =
   | { readonly type: 'room-opened'; readonly roomId: string }
+  | { readonly type: 'go-home-pressed' }
   | { readonly type: 'prejoin-completed' }
   | { readonly type: 'microphone-toggled' }
   | { readonly type: 'camera-toggled' }
@@ -36,6 +37,12 @@ export type RoomUiEffect =
   | { readonly type: 'navigate-home' }
   | { readonly type: 'show-toast'; readonly message: string }
   | { readonly type: 'download-logs'; readonly fileName: string; readonly content: string }
+
+export type RoomUiError = {
+  readonly title: string
+  readonly description: string
+  readonly actionLabel: string
+}
 
 export const initialRoomState: RoomUiState = {
   roomId: '',

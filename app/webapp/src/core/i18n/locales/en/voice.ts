@@ -33,8 +33,13 @@ export default {
     cameraOffShort: 'Camera will stay off.',
     defaultDevice: 'Default',
     joinRoom: 'Join room',
+    joining: 'Joining...',
     errors: {
       load: 'Could not load room settings.',
+      roomNotFound:
+        'This room is no longer available. It may have ended or the server may have restarted.',
+      mediaUnavailable:
+        'Could not read your devices. Check camera and microphone permissions in the browser.',
       nameRequired: 'Name is required',
       enterName: 'Enter your name before joining.',
       join: 'Could not join room.',
@@ -84,6 +89,7 @@ export default {
       clear: 'Clear'
     },
     status: {
+      checkingRoom: 'Checking room.',
       chooseSettings: 'Choose how you want to enter the room.',
       logsCleared: 'Local logs cleared.',
       microphoneOn: 'Microphone is on.',
@@ -94,7 +100,10 @@ export default {
       screenStopped: 'Screen sharing stopped.',
       linkCopied: 'Room link copied.',
       linkCopyFailed: 'Could not copy room link.',
-      mediaStarting: 'Room media is starting.'
+      mediaStarting: 'Room media is starting.',
+      roomUnavailable: 'Room is no longer available.',
+      roomCheckFailed: 'Could not check the room.',
+      sessionExpired: 'Session expired. Join the room again.'
     },
     toasts: {
       logsConsole: 'Logs are ready in console for this presentation pass.',
@@ -106,7 +115,22 @@ export default {
       screenFailed: 'Could not update screen sharing.',
       linkCopied: 'Room link copied.',
       linkCopyFailed: 'Could not copy room link.',
-      mediaFailed: 'Could not start room media.'
+      mediaFailed: 'Could not start room media.',
+      sessionExpired: 'Session expired. Check your settings and join again.'
+    },
+    errors: {
+      roomUnavailable: {
+        title: 'Room is no longer available',
+        description:
+          'This room may have ended after a server restart or is no longer stored. We cleared local data for this room so the next join does not get stuck.',
+        action: 'Back to home'
+      },
+      roomCheckFailed: {
+        title: 'Could not check the room',
+        description:
+          'The app could not reach the room server right now. Check your connection and try opening the link again.',
+        action: 'Back to home'
+      }
     }
   }
 } as const

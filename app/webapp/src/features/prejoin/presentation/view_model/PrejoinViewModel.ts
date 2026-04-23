@@ -75,11 +75,13 @@ export class PrejoinViewModel extends ViewModel {
 
     const context = await this.loadPrejoinContextUseCase.execute({ roomId, requestedRole: role })
     if (!context.ok) {
+      const message = prejoinContextErrorMessage(context.error.type)
       this.state.update((state) => ({
         ...state,
         loading: false,
-        error: 'prejoin.errors.load'
+        error: message
       }))
+      this.effects.emit({ type: 'load-failed', message })
       return
     }
 
@@ -188,7 +190,9 @@ export class PrejoinViewModel extends ViewModel {
     if (result.ok) {
       this.effects.emit({ type: 'joined', roomId: result.value.session.roomId })
     } else {
-      this.effects.emit({ type: 'join-failed', message: 'prejoin.errors.join' })
+      const message = prejoinJoinErrorMessage(result.error.type)
+      this.state.update((current) => ({ ...current, error: message }))
+      this.effects.emit({ type: 'join-failed', message })
     }
   }
 
@@ -204,7 +208,39 @@ export class PrejoinViewModel extends ViewModel {
     })
 
     if (!result.ok) {
+      this.state.update((current) => ({ ...current, error: 'prejoin.errors.preview' }))
       this.effects.emit({ type: 'preview-failed', message: 'prejoin.errors.preview' })
     }
+  }
+}
+
+function prejoinContextErrorMessage(
+  error: 'room-not-found' | 'media-unavailable' | 'unknown-error'
+) {
+  switch (error) {
+    case 'room-not-found':
+      return 'prejoin.errors.roomNotFound'
+    case 'media-unavailable':
+      return 'prejoin.errors.mediaUnavailable'
+    default:
+      return 'prejoin.errors.load'
+  }
+}
+
+function prejoinJoinErrorMessage(
+  error:
+    | 'display-name-empty'
+    | 'room-not-found'
+    | 'join-failed'
+    | 'preferences-save-failed'
+    | 'unknown-error'
+) {
+  switch (error) {
+    case 'display-name-empty':
+      return 'prejoin.errors.enterName'
+    case 'room-not-found':
+      return 'prejoin.errors.roomNotFound'
+    default:
+      return 'prejoin.errors.join'
   }
 }

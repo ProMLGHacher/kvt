@@ -29,6 +29,7 @@ export type PrejoinUiAction =
 
 export type PrejoinUiEffect =
   | { readonly type: 'joined'; readonly roomId: string }
+  | { readonly type: 'load-failed'; readonly message: string }
   | { readonly type: 'join-failed'; readonly message: string }
   | { readonly type: 'preview-failed'; readonly message: string }
 
