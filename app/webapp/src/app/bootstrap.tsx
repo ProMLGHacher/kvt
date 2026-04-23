@@ -4,6 +4,7 @@ import { KvtProvider, KvtRouterProvider } from '@kvt/react'
 import { KvtThemeProvider } from '@kvt/theme'
 import { Suspense } from 'react'
 import { initI18n } from '@core/i18n/config'
+import { ToastProvider } from '@core/design-system'
 import './styles/index.css'
 import { appRoutes } from './router'
 import { voiceModule } from './di'
@@ -15,9 +16,11 @@ const runtime = createKvt({ modules: [voiceModule] })
 createRoot(document.getElementById('root')!).render(
   <KvtThemeProvider>
     <KvtProvider runtime={runtime}>
-      <Suspense fallback={null}>
-        <KvtRouterProvider routes={appRoutes} />
-      </Suspense>
+      <ToastProvider>
+        <Suspense fallback={null}>
+          <KvtRouterProvider routes={appRoutes} />
+        </Suspense>
+      </ToastProvider>
     </KvtProvider>
   </KvtThemeProvider>
 )

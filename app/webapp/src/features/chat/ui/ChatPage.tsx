@@ -12,10 +12,9 @@ import {
   ScrollArea,
   Separator,
   Textarea,
-  Toast,
-  ToastViewport,
   Tooltip,
   cn,
+  useToast,
   useWindowSizeClass
 } from '@core/design-system'
 import type { TFunction } from 'i18next'
@@ -33,11 +32,6 @@ type MobilePane = 'list' | 'chat' | 'details'
 type ChatListDensity = 'full' | 'rail'
 type DesktopMode = 'rail' | 'dual' | 'triple'
 
-interface ToastItem {
-  readonly id: number
-  readonly text: string
-}
-
 type ChatT = TFunction<'chat'>
 
 export default function ChatPage() {
@@ -45,15 +39,11 @@ export default function ChatPage() {
   const viewModel = useViewModel(ChatViewModel)
   const uiState = useStateFlow(viewModel.uiState)
   const windowSizeClass = useWindowSizeClass()
+  const toasts = useToast()
   const [mobilePane, setMobilePane] = useState<MobilePane>('chat')
-  const [toasts, setToasts] = useState<readonly ToastItem[]>([])
 
   useSharedFlow(viewModel.effects, (effect: ChatEffect) => {
-    const id = Date.now()
-    setToasts((items) => [...items, { id, text: effect.text }])
-    window.setTimeout(() => {
-      setToasts((items) => items.filter((item) => item.id !== id))
-    }, 2600)
+    toasts.toast(effect.text)
   })
 
   const isCompact =
@@ -86,14 +76,6 @@ export default function ChatPage() {
           <InspectorPane floating state={uiState} t={t} viewModel={viewModel} />
         </Sheet>
       )}
-
-      <ToastViewport>
-        {toasts.map((toast) => (
-          <Toast key={toast.id} className="animate-in slide-in-from-bottom-2">
-            {toast.text}
-          </Toast>
-        ))}
-      </ToastViewport>
     </section>
   )
 }

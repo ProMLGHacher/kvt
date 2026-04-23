@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useSharedFlow, useStateFlow, useViewModel, type PropsWithVM } from '@kvt/react'
 import { useTranslation } from 'react-i18next'
@@ -15,10 +15,9 @@ import {
   Empty,
   ScrollArea,
   Switch,
-  Toast,
-  ToastViewport,
   Toggle,
-  cn
+  cn,
+  useToast
 } from '@core/design-system'
 import type { Participant, ParticipantSlotKind } from '@features/room/domain/model/Participant'
 import { PrejoinModal } from '@features/prejoin/presentation/view/PrejoinModal'
@@ -31,7 +30,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
   const navigate = useNavigate()
   const viewModel = useViewModel(_vm, { key: `room:${roomId}` })
   const uiState = useStateFlow(viewModel.uiState)
-  const [toast, setToast] = useState<string | null>(null)
+  const toasts = useToast()
   const { t } = useTranslation('voice')
   const tx = t as unknown as Translate
 
@@ -45,12 +44,11 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         void navigate('/')
         break
       case 'show-toast':
-        setToast(tx(effect.message))
-        window.setTimeout(() => setToast(null), 2400)
+        toasts.toast(tx(effect.message))
         break
       case 'download-logs':
         downloadTextFile(effect.fileName, effect.content)
-        setToast(t('room.toasts.logsConsole'))
+        toasts.info(t('room.toasts.logsConsole'))
         break
     }
   })
@@ -125,8 +123,6 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         role="host"
         onJoined={() => viewModel.onEvent({ type: 'prejoin-completed' })}
       />
-
-      <ToastViewport>{toast && <Toast>{toast}</Toast>}</ToastViewport>
     </section>
   )
 }
