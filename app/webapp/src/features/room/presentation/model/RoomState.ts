@@ -9,6 +9,8 @@ export type RoomUiState = {
   readonly status: RtcConnectionStatus
   readonly participants: readonly Participant[]
   readonly localParticipantId: string | null
+  readonly localStream: MediaStream | null
+  readonly remoteStreams: Readonly<Record<string, MediaStream>>
   readonly microphone: RoomControlState
   readonly camera: RoomControlState
   readonly screenShare: RoomControlState
@@ -37,10 +39,12 @@ export type RoomUiEffect =
 
 export const initialRoomState: RoomUiState = {
   roomId: '',
-  prejoinOpen: true,
+  prejoinOpen: false,
   status: 'idle',
   participants: [],
   localParticipantId: null,
+  localStream: null,
+  remoteStreams: {},
   microphone: { kind: 'microphone', enabled: true, loading: false, error: null },
   camera: { kind: 'camera', enabled: false, loading: false, error: null },
   screenShare: { kind: 'screen', enabled: false, loading: false, error: null },

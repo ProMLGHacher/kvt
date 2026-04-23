@@ -59,6 +59,7 @@ export default {
       screen: 'Screen',
       mic: 'Mic',
       cam: 'Cam',
+      waitingMedia: 'Participant is connected, waiting for media.',
       roles: {
         host: 'Host',
         participant: 'Participant'

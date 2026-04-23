@@ -39,6 +39,8 @@ export type RtcSession = {
   readonly participantId: string
   readonly status: RtcConnectionStatus
   readonly snapshot: RtcRoomSnapshot | null
+  readonly localStream: MediaStream | null
+  readonly remoteStreams: Readonly<Record<string, MediaStream>>
 }
 
 export type RtcDiagnostics = {

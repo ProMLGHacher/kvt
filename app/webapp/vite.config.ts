@@ -11,6 +11,7 @@ const allowedHosts = process.env.VITE_ALLOWED_HOSTS?.split(',')
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
+    dedupe: ['react', 'react-dom', 'react-router'],
     alias: {
       '@app': fileURLToPath(new URL('./src/app', import.meta.url)),
       '@capabilities': fileURLToPath(new URL('./src/capabilities', import.meta.url)),

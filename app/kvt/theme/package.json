@@ -18,11 +18,12 @@
     "build": "tsc -p tsconfig.json && cp src/styles/styles.css dist/styles.css",
     "watch": "tsc -p tsconfig.json --watch"
   },
-  "dependencies": {
+  "peerDependencies": {
     "react": "^19.2.5"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
+    "react": "^19.2.5",
     "typescript": "^5.9.0"
   }
 }

@@ -123,7 +123,7 @@ func (s *RoomService) joinRoom(ctx context.Context, roomID string, role domain.P
 	now := s.clock.Now()
 	var participant *domain.Participant
 
-	if role == domain.RoleHost && room.HostParticipantID != "" {
+	if role == domain.RoleHost && room.HostParticipantID != "" && isReservedHostParticipant(room) {
 		existingHost, exists := room.Participants[room.HostParticipantID]
 		if !exists {
 			return JoinResult{}, ErrRoomNotFound
@@ -135,14 +135,15 @@ func (s *RoomService) joinRoom(ctx context.Context, roomID string, role domain.P
 		existingHost.Role = domain.RoleHost
 		participant = existingHost
 	} else {
+		if role == domain.RoleHost {
+			role = domain.RoleParticipant
+		}
+
 		participantID := s.ids.NewID()
 		participant = domain.NewParticipant(participantID, prefs.DisplayName, role, now, domain.JoinPreferences{
 			MicEnabled:    prefs.MicEnabled,
 			CameraEnabled: prefs.CameraEnabled,
 		})
-		if role == domain.RoleHost {
-			participant.Role = domain.RoleHost
-		}
 
 		if err := room.AddParticipant(participant); err != nil {
 			return JoinResult{}, err
@@ -180,6 +181,25 @@ func (s *RoomService) joinRoom(ctx context.Context, roomID string, role domain.P
 
 func (s *RoomService) GetInviteMetadata(token string) (InviteClaims, error) {
 	return s.invites.ParseToken(token)
+}
+
+func isReservedHostParticipant(room *domain.Room) bool {
+	host, exists := room.Participants[room.HostParticipantID]
+	if !exists {
+		return false
+	}
+
+	if host.DisplayName != "Host" || host.Role != domain.RoleHost {
+		return false
+	}
+
+	for _, slot := range host.Slots {
+		if slot.Enabled || slot.Publishing || slot.TrackBound || slot.Revision != 1 {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (s *RoomService) buildWSURL(baseURL *url.URL, sessionID string) string {

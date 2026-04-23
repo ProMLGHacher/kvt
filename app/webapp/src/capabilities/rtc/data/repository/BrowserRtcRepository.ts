@@ -13,7 +13,9 @@ const initialSession: RtcSession = {
   roomId: '',
   participantId: '',
   status: 'idle',
-  snapshot: null
+  snapshot: null,
+  localStream: null,
+  remoteStreams: {}
 }
 
 export class BrowserRtcRepository implements RtcRepository {
@@ -30,15 +32,17 @@ export class BrowserRtcRepository implements RtcRepository {
       roomId: params.roomId,
       participantId: params.participantId,
       status: 'connecting',
-      snapshot: null
+      snapshot: null,
+      localStream: null,
+      remoteStreams: {}
     })
 
     this.client = new ConferenceClient({
       onSnapshot: (snapshot) => this.applySnapshot(params.participantId, snapshot),
       onSlotUpdated: (slot) => this.applySlotUpdate(slot),
-      onRemoteTrack: () => undefined,
-      onRemoteStreamsReset: () => undefined,
-      onLocalStream: () => undefined,
+      onRemoteTrack: (participantId, _kind, stream) => this.applyRemoteStream(participantId, stream),
+      onRemoteStreamsReset: () => this.clearRemoteStreams(),
+      onLocalStream: (stream) => this.applyLocalStream(stream),
       onStateChange: (state) => this.updateStatus(state),
       onDiagnostics: (diagnostics) => this.updateDiagnostics(diagnostics),
       onError: (message) => {
@@ -69,7 +73,12 @@ export class BrowserRtcRepository implements RtcRepository {
   disconnect(): void {
     this.client?.close()
     this.client = null
-    this.sessionState.update((session) => ({ ...session, status: 'closed' }))
+    this.sessionState.update((session) => ({
+      ...session,
+      status: 'closed',
+      localStream: null,
+      remoteStreams: {}
+    }))
   }
 
   async setMicrophoneEnabled(enabled: boolean): PromiseResult<void, RtcError> {
@@ -112,6 +121,8 @@ export class BrowserRtcRepository implements RtcRepository {
       roomId: snapshot.roomId,
       participantId,
       status: 'connected',
+      localStream: this.sessionState.value.localStream,
+      remoteStreams: this.filterRemoteStreams(snapshot),
       snapshot: {
         roomId: snapshot.roomId,
         hostParticipantId: snapshot.hostParticipantId,
@@ -163,6 +174,33 @@ export class BrowserRtcRepository implements RtcRepository {
       ...session,
       status: mapConnectionStatus(state)
     }))
+  }
+
+  private applyLocalStream(stream: MediaStream | null) {
+    this.sessionState.update((session) => ({ ...session, localStream: stream }))
+  }
+
+  private applyRemoteStream(participantId: string, stream: MediaStream) {
+    this.sessionState.update((session) => ({
+      ...session,
+      remoteStreams: {
+        ...session.remoteStreams,
+        [participantId]: stream
+      }
+    }))
+  }
+
+  private clearRemoteStreams() {
+    this.sessionState.update((session) => ({ ...session, remoteStreams: {} }))
+  }
+
+  private filterRemoteStreams(snapshot: RoomSnapshot): Readonly<Record<string, MediaStream>> {
+    const activeParticipantIds = new Set(snapshot.participants.map((participant) => participant.id))
+    return Object.fromEntries(
+      Object.entries(this.sessionState.value.remoteStreams).filter(([participantId]) =>
+        activeParticipantIds.has(participantId)
+      )
+    )
   }
 
   private updateDiagnostics(diagnostics: ConferenceDiagnostics) {

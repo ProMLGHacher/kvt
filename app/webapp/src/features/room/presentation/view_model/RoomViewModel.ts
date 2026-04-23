@@ -1,5 +1,6 @@
-import { MutableSharedFlow, MutableStateFlow, ViewModel } from '@kvt/core'
+import { CompositeDisposable, MutableSharedFlow, MutableStateFlow, ViewModel } from '@kvt/core'
 import type { Participant } from '@features/room/domain/model/Participant'
+import type { RtcDiagnostics, RtcSession } from '@capabilities/rtc/domain/model'
 import type { ConnectToRoomRtcUseCase } from '@capabilities/rtc/domain/usecases/ConnectToRoomRtcUseCase'
 import type { LoadJoinSessionUseCase } from '@capabilities/session/domain/usecases/LoadJoinSessionUseCase'
 import type { StoredJoinSession } from '@capabilities/session/domain/model/JoinSession'
@@ -8,6 +9,7 @@ import type { ExportClientLogsUseCase } from '@capabilities/client-logs/domain/u
 import type { ClearClientLogsUseCase } from '@capabilities/client-logs/domain/usecases/ClearClientLogsUseCase'
 import type { CopyRoomLinkUseCase } from '@features/room/domain/usecases/CopyRoomLinkUseCase'
 import type { LeaveRoomUseCase } from '@features/room/domain/usecases/LeaveRoomUseCase'
+import type { ObserveRoomDiagnosticsUseCase } from '@features/room/domain/usecases/ObserveRoomDiagnosticsUseCase'
 import type { ObserveRoomSessionUseCase } from '@features/room/domain/usecases/ObserveRoomSessionUseCase'
 import type { ToggleRoomCameraUseCase } from '@features/room/domain/usecases/ToggleRoomCameraUseCase'
 import type { ToggleRoomMicrophoneUseCase } from '@features/room/domain/usecases/ToggleRoomMicrophoneUseCase'
@@ -22,6 +24,7 @@ import {
 export class RoomViewModel extends ViewModel {
   private readonly state = new MutableStateFlow<RoomUiState>(initialRoomState)
   private readonly effects = new MutableSharedFlow<RoomUiEffect>()
+  private latestDiagnostics: RtcDiagnostics | null = null
 
   readonly uiState = this.state.asStateFlow()
   readonly uiEffect = this.effects.asSharedFlow()
@@ -30,6 +33,7 @@ export class RoomViewModel extends ViewModel {
     private readonly loadJoinSessionUseCase: LoadJoinSessionUseCase,
     private readonly connectToRoomRtcUseCase: ConnectToRoomRtcUseCase,
     private readonly observeRoomSessionUseCase: ObserveRoomSessionUseCase,
+    private readonly observeRoomDiagnosticsUseCase: ObserveRoomDiagnosticsUseCase,
     private readonly toggleRoomMicrophoneUseCase: ToggleRoomMicrophoneUseCase,
     private readonly toggleRoomCameraUseCase: ToggleRoomCameraUseCase,
     private readonly toggleRoomScreenShareUseCase: ToggleRoomScreenShareUseCase,
@@ -43,14 +47,36 @@ export class RoomViewModel extends ViewModel {
   }
 
   protected override onInit() {
-    return this.observeRoomSessionUseCase.execute().subscribe((session) => {
-      this.state.update((state) => ({
-        ...state,
-        status: session.status,
-        localParticipantId: session.participantId || state.localParticipantId,
-        participants: (session.snapshot?.participants ?? state.participants) as Participant[]
-      }))
-    })
+    const disposables = new CompositeDisposable()
+    disposables.add(
+      this.observeRoomSessionUseCase.execute().subscribe((session) => {
+        this.state.update((state) => {
+          const next = {
+            ...state,
+            status: session.status,
+            roomId: session.roomId || state.roomId,
+            localParticipantId: session.participantId || state.localParticipantId,
+            participants: (session.snapshot?.participants ?? state.participants) as Participant[],
+            localStream: session.localStream,
+            remoteStreams: session.remoteStreams
+          }
+          return {
+            ...next,
+            diagnostics: createDiagnostics(next, session, this.latestDiagnostics)
+          }
+        })
+      })
+    )
+    disposables.add(
+      this.observeRoomDiagnosticsUseCase.execute().subscribe((diagnostics) => {
+        this.latestDiagnostics = diagnostics
+        this.state.update((state) => ({
+          ...state,
+          diagnostics: createDiagnostics(state, null, diagnostics)
+        }))
+      })
+    )
+    return disposables
   }
 
   onEvent(event: RoomUiAction) {
@@ -93,6 +119,11 @@ export class RoomViewModel extends ViewModel {
   }
 
   private async openRoom(roomId: string) {
+    if (!roomId.trim()) {
+      this.effects.emit({ type: 'navigate-home' })
+      return
+    }
+
     if (this.state.value.roomId === roomId) {
       return
     }
@@ -104,8 +135,10 @@ export class RoomViewModel extends ViewModel {
       status: 'idle',
       participants: [],
       localParticipantId: null,
+      localStream: null,
+      remoteStreams: {},
       actionStatus: 'room.status.chooseSettings',
-      diagnostics: this.createDiagnostics(roomId)
+      diagnostics: null
     }))
 
     const storedSession = await this.loadJoinSessionUseCase.execute(roomId)
@@ -220,6 +253,8 @@ export class RoomViewModel extends ViewModel {
       status: 'connecting',
       participants: session.snapshot.participants as Participant[],
       localParticipantId: session.participantId,
+      localStream: state.localStream,
+      remoteStreams: state.remoteStreams,
       microphone: {
         ...state.microphone,
         enabled: hasEnabledSlot(session.snapshot.participants, session.participantId, 'audio')
@@ -237,18 +272,62 @@ export class RoomViewModel extends ViewModel {
     await this.clearJoinSessionUseCase.execute(this.state.value.roomId)
     this.effects.emit({ type: 'navigate-home' })
   }
+}
 
-  private createDiagnostics(roomId: string): RoomUiState['diagnostics'] {
-    return {
-      room: [
-        `Room id: ${roomId || 'not selected'}`,
-        `Participants: ${this.state.value.participants.length}`
-      ],
-      publisher: ['Connection: waiting', 'ICE: waiting'],
-      subscriber: ['Connection: waiting', 'Remote streams: 0'],
-      signaling: ['Socket: not connected in presentation preview']
-    }
+function createDiagnostics(
+  state: RoomUiState,
+  session: RtcSession | null,
+  rtcDiagnostics: RtcDiagnostics | null
+): RoomUiState['diagnostics'] {
+  const nextSession = session ?? null
+  const roomId = nextSession?.roomId || state.roomId || 'not selected'
+  const participants = nextSession?.snapshot?.participants ?? state.participants
+  const localStream = nextSession?.localStream ?? state.localStream
+  const remoteStreams = nextSession?.remoteStreams ?? state.remoteStreams
+  const diagnostics = rtcDiagnostics
+
+  return {
+    room: [
+      `Room id: ${roomId}`,
+      `Participants: ${participants.length}`,
+      `Local participant: ${nextSession?.participantId || state.localParticipantId || 'missing'}`,
+      `Remote streams: ${Object.keys(remoteStreams).length}`
+    ],
+    publisher: [
+      `Connection: ${diagnostics?.publisherConnectionState ?? state.status}`,
+      `ICE: ${diagnostics?.publisherIceState ?? 'unknown'}`,
+      `Local tracks: ${describeStreamTracks(localStream)}`
+    ],
+    subscriber: [
+      `Connection: ${diagnostics?.subscriberConnectionState ?? 'unknown'}`,
+      `ICE: ${diagnostics?.subscriberIceState ?? 'unknown'}`,
+      `Remote streams: ${Object.keys(remoteStreams).length}`
+    ],
+    signaling: [
+      `Socket: ${diagnostics?.signalingState ?? 'unknown'}`,
+      `Sent: ${formatSignals(diagnostics?.recentSignalsSent)}`,
+      `Received: ${formatSignals(diagnostics?.recentSignalsReceived)}`,
+      `Last error: ${diagnostics?.lastError ?? 'none'}`
+    ]
   }
+}
+
+function describeStreamTracks(stream: MediaStream | null): string {
+  if (!stream) {
+    return 'none'
+  }
+
+  const audio = stream.getAudioTracks().filter((track) => track.readyState === 'live').length
+  const video = stream.getVideoTracks().filter((track) => track.readyState === 'live').length
+  return `audio=${audio}, video=${video}`
+}
+
+function formatSignals(signals: readonly string[] | undefined): string {
+  if (!signals?.length) {
+    return 'none'
+  }
+
+  return signals.slice(-6).join(', ')
 }
 
 function updateLocalSlot(

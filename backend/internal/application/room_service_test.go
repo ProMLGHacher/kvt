@@ -128,6 +128,55 @@ func TestHostJoinReusesReservedHostSlot(t *testing.T) {
 	}
 }
 
+func TestSecondHostJoinBecomesParticipant(t *testing.T) {
+	roomRepo := repository.NewInMemoryRoomRepository()
+	sessionRepo := repository.NewInMemorySessionRepository()
+	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
+	invites := NewHMACInviteService([]byte("secret"), clock, time.Hour)
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed", "session-host", "participant-2", "session-2")
+	baseURL, _ := url.Parse("http://localhost:5173")
+
+	service := NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, nil)
+
+	createResult, err := service.CreateRoom(context.Background())
+	if err != nil {
+		t.Fatalf("expected create room to succeed, got %v", err)
+	}
+
+	firstJoin, err := service.JoinRoomByID(context.Background(), createResult.RoomID, PrejoinPreferences{
+		DisplayName:   "Actual Host",
+		MicEnabled:    true,
+		CameraEnabled: true,
+		Role:          string(domain.RoleHost),
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected first host join to succeed, got %v", err)
+	}
+
+	secondJoin, err := service.JoinRoomByID(context.Background(), createResult.RoomID, PrejoinPreferences{
+		DisplayName:   "Second Browser",
+		MicEnabled:    true,
+		CameraEnabled: true,
+		Role:          string(domain.RoleHost),
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected second host-shaped join to succeed, got %v", err)
+	}
+
+	if firstJoin.ParticipantID == secondJoin.ParticipantID {
+		t.Fatalf("expected second join to get a distinct participant id, got %q", secondJoin.ParticipantID)
+	}
+
+	if secondJoin.Role != domain.RoleParticipant {
+		t.Fatalf("expected second join to be downgraded to participant, got %q", secondJoin.Role)
+	}
+
+	if len(secondJoin.Snapshot.Participants) != 2 {
+		t.Fatalf("expected actual host + participant in snapshot, got %d participants", len(secondJoin.Snapshot.Participants))
+	}
+}
+
 func TestIceRecoveryPolicy(t *testing.T) {
 	service := NewIceRecoveryService()
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useSharedFlow, useStateFlow, useViewModel, type PropsWithVM } from '@kvt/react'
 import { useTranslation } from 'react-i18next'
@@ -49,7 +49,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         window.setTimeout(() => setToast(null), 2400)
         break
       case 'download-logs':
-        console.info(effect.fileName, effect.content)
+        downloadTextFile(effect.fileName, effect.content)
         setToast(t('room.toasts.logsConsole'))
         break
     }
@@ -79,7 +79,9 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         <main className={cn('grid min-h-0 gap-4', uiState.technicalInfoVisible && 'xl:col-span-3')}>
           <ParticipantGrid
             localParticipantId={uiState.localParticipantId}
+            localStream={uiState.localStream}
             participants={uiState.participants}
+            remoteStreams={uiState.remoteStreams}
             t={tx}
           />
           <ControlBar
@@ -104,7 +106,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
       </div>
 
       <PrejoinModal
-        open={uiState.prejoinOpen}
+        open={uiState.prejoinOpen && Boolean(uiState.roomId)}
         roomId={uiState.roomId}
         role="host"
         onJoined={() => viewModel.onEvent({ type: 'prejoin-completed' })}
@@ -173,10 +175,18 @@ function RoomHeader({
 interface ParticipantGridProps {
   readonly participants: readonly Participant[]
   readonly localParticipantId: string | null
+  readonly localStream: MediaStream | null
+  readonly remoteStreams: Readonly<Record<string, MediaStream>>
   readonly t: Translate
 }
 
-function ParticipantGrid({ participants, localParticipantId, t }: ParticipantGridProps) {
+function ParticipantGrid({
+  participants,
+  localParticipantId,
+  localStream,
+  remoteStreams,
+  t
+}: ParticipantGridProps) {
   if (!participants.length) {
     return (
       <Empty className="min-h-0 flex-1">
@@ -198,6 +208,7 @@ function ParticipantGrid({ participants, localParticipantId, t }: ParticipantGri
             key={participant.id}
             local={participant.id === localParticipantId}
             participant={participant}
+            stream={participant.id === localParticipantId ? localStream : remoteStreams[participant.id]}
             t={t}
           />
         ))}
@@ -209,30 +220,49 @@ function ParticipantGrid({ participants, localParticipantId, t }: ParticipantGri
 function ParticipantTile({
   participant,
   local,
+  stream,
   t
 }: {
   readonly participant: Participant
   readonly local: boolean
+  readonly stream: MediaStream | null | undefined
   readonly t: Translate
 }) {
   const cameraOn = slotEnabled(participant, 'camera')
   const screenOn = slotEnabled(participant, 'screen')
   const audioOn = slotEnabled(participant, 'audio')
+  const showVideo = Boolean(stream) && (cameraOn || screenOn)
+  const awaitingMedia = !stream && (audioOn || cameraOn || screenOn)
 
   return (
     <Card className="group overflow-hidden rounded-4xl">
       <div className="relative grid aspect-video place-items-center overflow-hidden bg-slate-950 text-white">
-        {cameraOn || screenOn ? (
-          <div className="absolute inset-0 bg-gradient-to-br from-info via-primary to-slate-950 opacity-80" />
+        {showVideo && stream ? (
+          <ParticipantVideo
+            isLocal={local}
+            muted={local}
+            participantId={participant.id}
+            stream={stream}
+          />
         ) : (
-          <div className="grid size-20 place-items-center rounded-full bg-white/10 text-3xl font-black">
-            {participant.displayName.slice(0, 1).toUpperCase()}
+          <div className="grid gap-3 p-6 text-center">
+            <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/10 text-3xl font-black">
+              {participant.displayName.slice(0, 1).toUpperCase()}
+            </div>
+            {awaitingMedia && (
+              <p className="max-w-56 text-xs leading-5 text-slate-300">
+                {t('room.participant.waitingMedia')}
+              </p>
+            )}
           </div>
         )}
         <div className="absolute left-3 top-3 flex gap-2">
           {local && <Badge variant="info">{t('room.participant.you')}</Badge>}
           {screenOn && <Badge variant="warning">{t('room.participant.screen')}</Badge>}
         </div>
+        {audioOn && stream && !local && (
+          <ParticipantAudio participantId={participant.id} stream={stream} />
+        )}
       </div>
       <CardContent className="flex items-center justify-between gap-3 p-4">
         <div className="min-w-0">
@@ -249,6 +279,69 @@ function ParticipantTile({
     </Card>
   )
 }
+
+const ParticipantVideo = memo(function ParticipantVideo({
+  participantId,
+  stream,
+  muted,
+  isLocal
+}: {
+  readonly participantId: string
+  readonly stream: MediaStream
+  readonly muted: boolean
+  readonly isLocal: boolean
+}) {
+  const ref = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+
+    if (node.srcObject !== stream) {
+      node.srcObject = stream
+      console.info('[kvt][room-media] video stream attached', {
+        participantId,
+        isLocal,
+        trackIds: describeTracks(stream)
+      })
+    }
+  }, [participantId, stream, isLocal])
+
+  return (
+    <video
+      autoPlay
+      className="h-full w-full object-cover"
+      muted={muted}
+      playsInline
+      ref={ref}
+    />
+  )
+})
+
+const ParticipantAudio = memo(function ParticipantAudio({
+  participantId,
+  stream
+}: {
+  readonly participantId: string
+  readonly stream: MediaStream
+}) {
+  const ref = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+
+    if (node.srcObject !== stream) {
+      node.srcObject = stream
+      console.info('[kvt][room-media] audio stream attached', {
+        participantId,
+        trackIds: describeTracks(stream)
+      })
+    }
+  }, [participantId, stream])
+
+  return <audio autoPlay ref={ref} />
+})
 
 function SlotBadge({ enabled, label }: { readonly enabled: boolean; readonly label: string }) {
   return <Badge variant={enabled ? 'success' : 'default'}>{label}</Badge>
@@ -360,4 +453,25 @@ function DiagnosticGroup({
 
 function slotEnabled(participant: Participant, kind: ParticipantSlotKind): boolean {
   return participant.slots.some((slot) => slot.kind === kind && slot.enabled && slot.publishing)
+}
+
+function describeTracks(stream: MediaStream) {
+  return stream.getTracks().map((track) => ({
+    id: track.id,
+    kind: track.kind,
+    readyState: track.readyState,
+    enabled: track.enabled
+  }))
+}
+
+function downloadTextFile(fileName: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.append(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }

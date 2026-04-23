@@ -18,7 +18,9 @@ export class LocalStorageClientLogRepository implements ClientLogRepository {
   }
 
   getEntries(): readonly ClientLogEntry[] {
-    return this.state.value
+    const entries = this.read()
+    this.state.set(entries)
+    return entries
   }
 
   clear(): void {

@@ -66,6 +66,7 @@ import { CreateRoomUseCase } from '@features/room/domain/usecases/CreateRoomUseC
 import { GetRoomMetadataUseCase } from '@features/room/domain/usecases/GetRoomMetadataUseCase'
 import { JoinRoomUseCase } from '@features/room/domain/usecases/JoinRoomUseCase'
 import { LeaveRoomUseCase } from '@features/room/domain/usecases/LeaveRoomUseCase'
+import { ObserveRoomDiagnosticsUseCase } from '@features/room/domain/usecases/ObserveRoomDiagnosticsUseCase'
 import { ObserveRoomSessionUseCase } from '@features/room/domain/usecases/ObserveRoomSessionUseCase'
 import { RoomExistsByIdUseCase } from '@features/room/domain/usecases/RoomExistsByIdUseCase'
 import { ToggleRoomCameraUseCase } from '@features/room/domain/usecases/ToggleRoomCameraUseCase'
@@ -380,6 +381,13 @@ class VoiceModule {
     return new ObserveRoomSessionUseCase(repository)
   }
 
+  @Provides(ObserveRoomDiagnosticsUseCase)
+  static provideObserveRoomDiagnosticsUseCase(
+    @Inject(rtcRepositoryToken) repository: RtcRepository
+  ) {
+    return new ObserveRoomDiagnosticsUseCase(repository)
+  }
+
   @Provides(ToggleRoomMicrophoneUseCase)
   static provideToggleRoomMicrophoneUseCase(
     @Inject(SetRtcMicrophoneEnabledUseCase) setMic: SetRtcMicrophoneEnabledUseCase
@@ -474,6 +482,7 @@ class VoiceModule {
     @Inject(LoadJoinSessionUseCase) loadSession: LoadJoinSessionUseCase,
     @Inject(ConnectToRoomRtcUseCase) connectRtc: ConnectToRoomRtcUseCase,
     @Inject(ObserveRoomSessionUseCase) observeRoom: ObserveRoomSessionUseCase,
+    @Inject(ObserveRoomDiagnosticsUseCase) observeDiagnostics: ObserveRoomDiagnosticsUseCase,
     @Inject(ToggleRoomMicrophoneUseCase) toggleMic: ToggleRoomMicrophoneUseCase,
     @Inject(ToggleRoomCameraUseCase) toggleCamera: ToggleRoomCameraUseCase,
     @Inject(ToggleRoomScreenShareUseCase) toggleScreen: ToggleRoomScreenShareUseCase,
@@ -487,6 +496,7 @@ class VoiceModule {
       loadSession,
       connectRtc,
       observeRoom,
+      observeDiagnostics,
       toggleMic,
       toggleCamera,
       toggleScreen,

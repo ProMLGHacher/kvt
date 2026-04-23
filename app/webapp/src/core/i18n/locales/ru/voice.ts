@@ -61,6 +61,7 @@ export default {
       screen: 'Экран',
       mic: 'Микрофон',
       cam: 'Камера',
+      waitingMedia: 'Участник подключён, ожидаем медиа.',
       roles: {
         host: 'Организатор',
         participant: 'Участник'
