@@ -7,7 +7,6 @@ import { setLanguage, supportedLanguages, type SupportedLanguage } from '@core/i
 export function AppLayout() {
   const { t, i18n } = useTranslation('common')
   const { resolvedMode, toggleMode } = useKvtTheme()
-  const tx = t as unknown as (key: string) => string
 
   return (
     <main className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
@@ -48,7 +47,8 @@ export function AppLayout() {
             type="button"
             variant="outline"
           >
-            {t('nav.theme')}: {tx(`nav.themeMode.${resolvedMode}`)}
+            {t('nav.theme')}:{' '}
+            {resolvedMode === 'dark' ? t('nav.themeMode.dark') : t('nav.themeMode.light')}
           </Button>
         </div>
       </nav>
