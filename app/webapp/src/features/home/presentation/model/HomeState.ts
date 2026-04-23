@@ -1,11 +1,15 @@
 import type { ButtonState } from '@core/utils/ButtonState'
 import type { FormFieldStateWithShowError } from '@core/utils/FormFieldState'
+import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
+
+export type HomeErrorMessageKey = PrefixedTranslationKey<'voice', 'home.errors'>
+export type HomeToastMessageKey = Extract<HomeErrorMessageKey, 'home.errors.createRoom'>
 
 export type HomeUiState = {
-  readonly idOrLinkToJoinState: FormFieldStateWithShowError<string>
+  readonly idOrLinkToJoinState: FormFieldStateWithShowError<string, HomeErrorMessageKey>
   readonly joinButtonState: ButtonState
   readonly createRoomButtonState: ButtonState
-  readonly feedback: string | null
+  readonly feedback: HomeErrorMessageKey | null
 }
 
 export type HomeUiAction =
@@ -15,7 +19,7 @@ export type HomeUiAction =
 
 export type HomeUiEffect =
   | { readonly type: 'open-room'; readonly roomId: string }
-  | { readonly type: 'show-message'; readonly message: string }
+  | { readonly type: 'show-message'; readonly message: HomeToastMessageKey }
 
 export const initialHomeState: HomeUiState = {
   idOrLinkToJoinState: { value: '', error: null, showError: false },

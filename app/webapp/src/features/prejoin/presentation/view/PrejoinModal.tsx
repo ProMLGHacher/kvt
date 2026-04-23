@@ -17,6 +17,7 @@ import {
   Label,
   NativeSelect,
   Switch,
+  useToast,
   VideoAspectRatio
 } from '@core/design-system'
 import type { ParticipantRole } from '@features/room/domain/model/Participant'
@@ -40,7 +41,7 @@ export function PrejoinModal({
   const uiState = useStateFlow(viewModel.uiState)
   const previewRef = useRef<HTMLVideoElement | null>(null)
   const { t } = useTranslation('voice')
-  const tx = t as unknown as (key: string, options?: Record<string, unknown>) => string
+  const toasts = useToast()
   const microphones = uiState.devices.filter((device) => device.kind === 'audio-input')
   const cameras = uiState.devices.filter((device) => device.kind === 'video-input')
 
@@ -49,8 +50,15 @@ export function PrejoinModal({
   }, [role, roomId, viewModel])
 
   useSharedFlow(viewModel.uiEffect, (effect) => {
-    if (effect.type === 'joined') {
-      onJoined()
+    switch (effect.type) {
+      case 'joined':
+        onJoined()
+        break
+      case 'load-failed':
+      case 'join-failed':
+      case 'preview-failed':
+        toasts.error(t(effect.message))
+        break
     }
   })
 
@@ -108,7 +116,7 @@ export function PrejoinModal({
           <div className="grid gap-4 sm:gap-5">
             {uiState.error && (
               <Alert>
-                <AlertDescription>{tx(uiState.error)}</AlertDescription>
+                <AlertDescription>{t(uiState.error)}</AlertDescription>
               </Alert>
             )}
 
@@ -125,7 +133,7 @@ export function PrejoinModal({
               />
               {uiState.displayName.showError && (
                 <FieldHint className="text-destructive">
-                  {uiState.displayName.error ? tx(uiState.displayName.error) : ''}
+                  {uiState.displayName.error ? t(uiState.displayName.error) : ''}
                 </FieldHint>
               )}
             </Field>

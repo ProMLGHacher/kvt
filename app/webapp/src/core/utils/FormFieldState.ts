@@ -1,10 +1,10 @@
-export type FormFieldState<T> = {
+export type FormFieldState<T, ErrorKey extends string = string> = {
   readonly value: T
-  readonly error: string | null
+  readonly error: ErrorKey | null
 }
 
-export type FormFieldStateWithShowError<T> = {
+export type FormFieldStateWithShowError<T, ErrorKey extends string = string> = {
   readonly value: T
-  readonly error: string | null
+  readonly error: ErrorKey | null
   readonly showError: boolean
 }

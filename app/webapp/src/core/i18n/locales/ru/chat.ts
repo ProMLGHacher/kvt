@@ -38,6 +38,12 @@ export default {
   tips: {
     doubleClick: 'Двойной клик по сообщению открывает детали'
   },
+  toasts: {
+    messageSent: 'Сообщение отправлено',
+    reactionUpdated: 'Реакция обновлена',
+    messageDeleted: 'Сообщение удалено',
+    replyStarted: 'Режим ответа включён'
+  },
   resize: {
     list: 'Изменить ширину списка чатов',
     details: 'Изменить ширину деталей'

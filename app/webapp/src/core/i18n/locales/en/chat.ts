@@ -1,3 +1,6 @@
+import type ruChat from '../ru/chat'
+import type { ResourceShape } from '../../translation-key'
+
 export default {
   eyebrow: 'KVT clean demo',
   title: 'Team chat',
@@ -38,8 +41,14 @@ export default {
   tips: {
     doubleClick: 'Double-click a message to open details'
   },
+  toasts: {
+    messageSent: 'Message sent',
+    reactionUpdated: 'Reaction updated',
+    messageDeleted: 'Message deleted',
+    replyStarted: 'Reply mode enabled'
+  },
   resize: {
     list: 'Resize chat list',
     details: 'Resize details pane'
   }
-} as const
+} as const satisfies ResourceShape<typeof ruChat>

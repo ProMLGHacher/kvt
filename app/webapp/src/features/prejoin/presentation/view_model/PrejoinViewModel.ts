@@ -3,7 +3,8 @@ import {
   initialPrejoinState,
   type PrejoinUiAction,
   type PrejoinUiEffect,
-  type PrejoinUiState
+  type PrejoinUiState,
+  type PrejoinErrorMessageKey
 } from '../model/PrejoinState'
 import type { JoinRoomFlowUseCase } from '@features/prejoin/domain/usecases/JoinRoomFlowUseCase'
 import type { LoadPrejoinContextUseCase } from '@features/prejoin/domain/usecases/LoadPrejoinContextUseCase'
@@ -238,7 +239,7 @@ export class PrejoinViewModel extends ViewModel {
 
 function prejoinContextErrorMessage(
   error: 'room-not-found' | 'media-unavailable' | 'unknown-error'
-) {
+): PrejoinErrorMessageKey {
   switch (error) {
     case 'room-not-found':
       return 'prejoin.errors.roomNotFound'
@@ -257,7 +258,7 @@ function mediaErrorMessage(
     | 'insecure-context'
     | 'api-unavailable'
     | 'unknown-error'
-) {
+): PrejoinErrorMessageKey {
   switch (error) {
     case 'permission-denied':
       return 'prejoin.errors.permissionDenied'
@@ -281,7 +282,7 @@ function prejoinJoinErrorMessage(
     | 'join-failed'
     | 'preferences-save-failed'
     | 'unknown-error'
-) {
+): PrejoinErrorMessageKey {
   switch (error) {
     case 'display-name-empty':
       return 'prejoin.errors.enterName'

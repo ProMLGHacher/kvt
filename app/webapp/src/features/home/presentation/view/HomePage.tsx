@@ -16,7 +16,8 @@ import {
   Field,
   FieldHint,
   Input,
-  InputGroup
+  InputGroup,
+  useToast
 } from '@core/design-system'
 
 export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): ReactNode {
@@ -24,7 +25,7 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
   const uiState = useStateFlow(viewModel.uiState)
   const navigate = useNavigate()
   const { t } = useTranslation('voice')
-  const tx = t as unknown as (key: string, options?: Record<string, unknown>) => string
+  const toasts = useToast()
 
   useSharedFlow(viewModel.uiEffect, (effect) => {
     switch (effect.type) {
@@ -32,7 +33,7 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
         void navigate(`/rooms/${effect.roomId}`)
         break
       case 'show-message':
-        console.info(tx(effect.message))
+        toasts.error(t(effect.message))
         break
     }
   })
@@ -75,7 +76,7 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
             <Field>
               {uiState.feedback && (
                 <Alert variant="warning">
-                  <AlertDescription>{tx(uiState.feedback)}</AlertDescription>
+                  <AlertDescription>{t(uiState.feedback)}</AlertDescription>
                 </Alert>
               )}
               <InputGroup className="flex-col gap-2 sm:flex-row">
@@ -108,7 +109,7 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
               </InputGroup>
               {uiState.idOrLinkToJoinState.showError ? (
                 <FieldHint className="text-destructive">
-                  {uiState.idOrLinkToJoinState.error ? tx(uiState.idOrLinkToJoinState.error) : ''}
+                  {uiState.idOrLinkToJoinState.error ? t(uiState.idOrLinkToJoinState.error) : ''}
                 </FieldHint>
               ) : (
                 <FieldHint>{t('home.directJoinHint')}</FieldHint>

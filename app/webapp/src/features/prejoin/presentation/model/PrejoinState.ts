@@ -1,13 +1,16 @@
 import type { ButtonState } from '@core/utils/ButtonState'
 import type { FormFieldStateWithShowError } from '@core/utils/FormFieldState'
+import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
 import type { MediaDevice, LocalPreviewState } from '@capabilities/media/domain/model'
 import type { ParticipantRole } from '@features/room/domain/model/Participant'
+
+export type PrejoinErrorMessageKey = PrefixedTranslationKey<'voice', 'prejoin.errors'>
 
 export type PrejoinUiState = {
   readonly roomId: string
   readonly loading: boolean
   readonly role: ParticipantRole
-  readonly displayName: FormFieldStateWithShowError<string>
+  readonly displayName: FormFieldStateWithShowError<string, PrejoinErrorMessageKey>
   readonly micEnabled: boolean
   readonly cameraEnabled: boolean
   readonly selectedMicrophoneId: string | null
@@ -15,7 +18,7 @@ export type PrejoinUiState = {
   readonly devices: readonly MediaDevice[]
   readonly preview: LocalPreviewState | null
   readonly joinButton: ButtonState
-  readonly error: string | null
+  readonly error: PrejoinErrorMessageKey | null
 }
 
 export type PrejoinUiAction =
@@ -29,9 +32,9 @@ export type PrejoinUiAction =
 
 export type PrejoinUiEffect =
   | { readonly type: 'joined'; readonly roomId: string }
-  | { readonly type: 'load-failed'; readonly message: string }
-  | { readonly type: 'join-failed'; readonly message: string }
-  | { readonly type: 'preview-failed'; readonly message: string }
+  | { readonly type: 'load-failed'; readonly message: PrejoinErrorMessageKey }
+  | { readonly type: 'join-failed'; readonly message: PrejoinErrorMessageKey }
+  | { readonly type: 'preview-failed'; readonly message: PrejoinErrorMessageKey }
 
 export const initialPrejoinState: PrejoinUiState = {
   roomId: '',

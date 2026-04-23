@@ -3,7 +3,8 @@ import {
   initialHomeState,
   type HomeUiAction,
   type HomeUiEffect,
-  type HomeUiState
+  type HomeUiState,
+  type HomeErrorMessageKey
 } from '../model/HomeState'
 import type { CreateRoomFlowUseCase } from '@features/home/domain/usecases/CreateRoomFlowUseCase'
 import type { JoinRoomFlowUseCase } from '@features/home/domain/usecases/JoinRoomFlowUseCase'
@@ -107,7 +108,9 @@ export class HomeViewModel extends ViewModel {
   }
 }
 
-function homeJoinErrorMessage(error: 'invalid-room-input' | 'room-not-found' | 'unknown-error') {
+function homeJoinErrorMessage(
+  error: 'invalid-room-input' | 'room-not-found' | 'unknown-error'
+): HomeErrorMessageKey {
   switch (error) {
     case 'invalid-room-input':
       return 'home.errors.invalidRoom'

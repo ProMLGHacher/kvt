@@ -43,7 +43,7 @@ export default function ChatPage() {
   const [mobilePane, setMobilePane] = useState<MobilePane>('chat')
 
   useSharedFlow(viewModel.effects, (effect: ChatEffect) => {
-    toasts.toast(effect.text)
+    toasts.toast(t(effect.message))
   })
 
   const isCompact =

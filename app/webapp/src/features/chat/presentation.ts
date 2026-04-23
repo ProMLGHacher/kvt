@@ -18,6 +18,9 @@ import {
   SendChatMessageUseCase,
   ToggleMessageReactionUseCase
 } from './domain'
+import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
+
+export type ChatToastMessageKey = PrefixedTranslationKey<'chat', 'toasts'>
 
 export interface ChatListItem {
   readonly id: ChatId
@@ -80,10 +83,10 @@ export interface ChatUiState {
 }
 
 export type ChatEffect =
-  | { readonly type: 'message-sent'; readonly text: string }
-  | { readonly type: 'reaction-updated'; readonly text: string }
-  | { readonly type: 'message-deleted'; readonly text: string }
-  | { readonly type: 'reply-started'; readonly text: string }
+  | { readonly type: 'message-sent'; readonly message: ChatToastMessageKey }
+  | { readonly type: 'reaction-updated'; readonly message: ChatToastMessageKey }
+  | { readonly type: 'message-deleted'; readonly message: ChatToastMessageKey }
+  | { readonly type: 'reply-started'; readonly message: ChatToastMessageKey }
 
 interface LocalState {
   readonly query: string
@@ -186,7 +189,7 @@ export class ChatViewModel extends ViewModel {
       replyToMessageId: messageId,
       selectedMessageId: messageId
     }
-    this.mutableEffects.emit({ type: 'reply-started', text: 'Reply mode enabled' })
+    this.mutableEffects.emit({ type: 'reply-started', message: 'toasts.replyStarted' })
     this.commit()
   }
 
@@ -211,18 +214,18 @@ export class ChatViewModel extends ViewModel {
       ...this.localState,
       replyToMessageId: null
     }
-    this.mutableEffects.emit({ type: 'message-sent', text: 'Message sent' })
+    this.mutableEffects.emit({ type: 'message-sent', message: 'toasts.messageSent' })
     this.commit()
   }
 
   toggleReaction(messageId: MessageId, emoji: string): void {
     this.toggleReactionUseCase.execute({ messageId, emoji })
-    this.mutableEffects.emit({ type: 'reaction-updated', text: `Reaction ${emoji} updated` })
+    this.mutableEffects.emit({ type: 'reaction-updated', message: 'toasts.reactionUpdated' })
   }
 
   deleteMessage(messageId: MessageId): void {
     this.deleteMessageUseCase.execute(messageId)
-    this.mutableEffects.emit({ type: 'message-deleted', text: 'Message deleted' })
+    this.mutableEffects.emit({ type: 'message-deleted', message: 'toasts.messageDeleted' })
   }
 
   setListPaneWidth(width: number): void {

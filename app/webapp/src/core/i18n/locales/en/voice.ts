@@ -1,3 +1,6 @@
+import type ruVoice from '../ru/voice'
+import type { ResourceShape } from '../../translation-key'
+
 export default {
   home: {
     badge: 'Voice rooms',
@@ -60,6 +63,8 @@ export default {
     header: {
       title: 'Room {{roomId}}',
       participants_one: '{{count}} participant',
+      participants_few: '{{count}} participants',
+      participants_many: '{{count}} participants',
       participants_other: '{{count}} participants',
       techInfo: 'Tech info',
       copyLink: 'Copy link',
@@ -143,4 +148,4 @@ export default {
       }
     }
   }
-} as const
+} as const satisfies ResourceShape<typeof ruVoice>

@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useSharedFlow, useStateFlow, useViewModel, type PropsWithVM } from '@kvt/react'
 import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import {
   Alert,
   AlertDescription,
@@ -22,8 +23,9 @@ import {
 import type { Participant, ParticipantSlotKind } from '@features/room/domain/model/Participant'
 import { PrejoinModal } from '@features/prejoin/presentation/view/PrejoinModal'
 import { RoomViewModel } from '../view_model/RoomViewModel'
+import type { RoomStatusMessageKey } from '../model/RoomState'
 
-type Translate = (key: string, options?: Record<string, unknown>) => string
+type VoiceT = TFunction<'voice'>
 
 export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): ReactNode {
   const { roomId = '' } = useParams()
@@ -32,7 +34,6 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
   const uiState = useStateFlow(viewModel.uiState)
   const toasts = useToast()
   const { t } = useTranslation('voice')
-  const tx = t as unknown as Translate
 
   useEffect(() => {
     viewModel.onEvent({ type: 'room-opened', roomId })
@@ -44,7 +45,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         void navigate('/')
         break
       case 'show-toast':
-        toasts.toast(tx(effect.message))
+        toasts.toast(t(effect.message))
         break
       case 'download-logs':
         downloadTextFile(effect.fileName, effect.content)
@@ -70,9 +71,9 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
 
       {uiState.error ? (
         <RoomErrorState
-          actionLabel={tx(uiState.error.actionLabel)}
-          description={tx(uiState.error.description)}
-          title={tx(uiState.error.title)}
+          actionLabel={t(uiState.error.actionLabel)}
+          description={t(uiState.error.description)}
+          title={t(uiState.error.title)}
           onAction={() => viewModel.onEvent({ type: 'go-home-pressed' })}
         />
       ) : (
@@ -93,7 +94,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
               localStream={uiState.localStream}
               participants={uiState.participants}
               remoteStreams={uiState.remoteStreams}
-              t={tx}
+              t={t}
             />
             <ControlBar
               cameraEnabled={uiState.camera.enabled}
@@ -102,7 +103,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
               onCamera={() => viewModel.onEvent({ type: 'camera-toggled' })}
               onMicrophone={() => viewModel.onEvent({ type: 'microphone-toggled' })}
               onScreen={() => viewModel.onEvent({ type: 'screen-share-toggled' })}
-              t={tx}
+              t={t}
             />
           </main>
 
@@ -111,7 +112,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
               diagnostics={uiState.diagnostics}
               onClearLogs={() => viewModel.onEvent({ type: 'clear-logs-pressed' })}
               onExportLogs={() => viewModel.onEvent({ type: 'export-logs-pressed' })}
-              t={tx}
+              t={t}
             />
           )}
         </div>
@@ -160,7 +161,7 @@ interface RoomHeaderProps {
   readonly roomId: string
   readonly status: string
   readonly participantCount: number
-  readonly actionStatus: string
+  readonly actionStatus: RoomStatusMessageKey
   readonly technicalInfoVisible: boolean
   readonly onCopy: () => void
   readonly onLeave: () => void
@@ -178,7 +179,6 @@ function RoomHeader({
   onTechnicalInfoChange
 }: RoomHeaderProps) {
   const { t } = useTranslation('voice')
-  const tx = t as unknown as Translate
 
   return (
     <Card className="rounded-4xl">
@@ -191,7 +191,7 @@ function RoomHeader({
           <h1 className="mt-2 break-words font-display text-xl font-black tracking-tight sm:text-2xl md:text-3xl">
             {t('room.header.title', { roomId })}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tx(actionStatus)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t(actionStatus)}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -221,7 +221,7 @@ interface ParticipantGridProps {
   readonly localParticipantId: string | null
   readonly localStream: MediaStream | null
   readonly remoteStreams: Readonly<Record<string, MediaStream>>
-  readonly t: Translate
+  readonly t: VoiceT
 }
 
 function ParticipantGrid({
@@ -272,7 +272,7 @@ function ParticipantTile({
   readonly participant: Participant
   readonly local: boolean
   readonly stream: MediaStream | null | undefined
-  readonly t: Translate
+  readonly t: VoiceT
 }) {
   const cameraOn = slotEnabled(participant, 'camera')
   const screenOn = slotEnabled(participant, 'screen')
@@ -394,7 +394,7 @@ interface ControlBarProps {
   readonly onMicrophone: () => void
   readonly onCamera: () => void
   readonly onScreen: () => void
-  readonly t: Translate
+  readonly t: VoiceT
 }
 
 function ControlBar({
@@ -439,7 +439,7 @@ function TechnicalPanel({
   } | null
   readonly onExportLogs: () => void
   readonly onClearLogs: () => void
-  readonly t: Translate
+  readonly t: VoiceT
 }) {
   return (
     <Card className="min-h-0 rounded-4xl">

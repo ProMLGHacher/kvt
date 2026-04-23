@@ -2,6 +2,11 @@ import type { ConferenceDiagnostics } from '@features/room/presentation/model/Ro
 import type { RoomControlState } from '@features/room/domain/model/RoomControls'
 import type { Participant } from '@features/room/domain/model/Participant'
 import type { RtcConnectionStatus } from '@capabilities/rtc/domain/model'
+import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
+
+export type RoomStatusMessageKey = PrefixedTranslationKey<'voice', 'room.status'>
+export type RoomToastMessageKey = PrefixedTranslationKey<'voice', 'room.toasts'>
+export type RoomErrorMessageKey = PrefixedTranslationKey<'voice', 'room.errors'>
 
 export type RoomUiState = {
   readonly roomId: string
@@ -14,7 +19,7 @@ export type RoomUiState = {
   readonly microphone: RoomControlState
   readonly camera: RoomControlState
   readonly screenShare: RoomControlState
-  readonly actionStatus: string
+  readonly actionStatus: RoomStatusMessageKey
   readonly error: RoomUiError | null
   readonly diagnostics: ConferenceDiagnostics | null
   readonly technicalInfoVisible: boolean
@@ -35,13 +40,13 @@ export type RoomUiAction =
 
 export type RoomUiEffect =
   | { readonly type: 'navigate-home' }
-  | { readonly type: 'show-toast'; readonly message: string }
+  | { readonly type: 'show-toast'; readonly message: RoomToastMessageKey }
   | { readonly type: 'download-logs'; readonly fileName: string; readonly content: string }
 
 export type RoomUiError = {
-  readonly title: string
-  readonly description: string
-  readonly actionLabel: string
+  readonly title: RoomErrorMessageKey
+  readonly description: RoomErrorMessageKey
+  readonly actionLabel: RoomErrorMessageKey
 }
 
 export const initialRoomState: RoomUiState = {
