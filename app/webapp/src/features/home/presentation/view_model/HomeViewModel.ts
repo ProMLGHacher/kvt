@@ -49,7 +49,8 @@ export class HomeViewModel extends ViewModel {
         error: enabled ? null : 'home.errors.roomInputRequired',
         showError: false
       },
-      joinButtonState: { ...state.joinButtonState, enabled }
+      joinButtonState: { ...state.joinButtonState, enabled },
+      feedback: null
     }))
   }
 
@@ -73,22 +74,46 @@ export class HomeViewModel extends ViewModel {
   }
 
   private async openTypedRoom() {
+    this.state.update((state) => ({
+      ...state,
+      joinButtonState: { ...state.joinButtonState, loading: true, enabled: false },
+      feedback: null
+    }))
+
     const result = await this.joinRoomFlowUseCase.execute({
       idOrLink: this.state.value.idOrLinkToJoinState.value
     })
 
     if (!result.ok) {
+      const message = homeJoinErrorMessage(result.error.type)
       this.state.update((state) => ({
         ...state,
         idOrLinkToJoinState: {
           ...state.idOrLinkToJoinState,
-          error: 'home.errors.invalidRoom',
+          error: message,
           showError: true
-        }
+        },
+        joinButtonState: { ...state.joinButtonState, loading: false, enabled: true },
+        feedback: message
       }))
       return
     }
 
+    this.state.update((state) => ({
+      ...state,
+      joinButtonState: { ...state.joinButtonState, loading: false, enabled: true }
+    }))
     this.effects.emit({ type: 'open-room', roomId: result.value.roomId })
+  }
+}
+
+function homeJoinErrorMessage(error: 'invalid-room-input' | 'room-not-found' | 'unknown-error') {
+  switch (error) {
+    case 'invalid-room-input':
+      return 'home.errors.invalidRoom'
+    case 'room-not-found':
+      return 'home.errors.roomNotFound'
+    default:
+      return 'home.errors.checkRoom'
   }
 }

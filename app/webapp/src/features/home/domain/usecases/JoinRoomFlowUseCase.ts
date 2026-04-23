@@ -19,7 +19,7 @@ export class JoinRoomFlowUseCase implements UseCase<
   async execute(params: JoinRoomFlowParams): PromiseResult<JoinRoomFlowResult, JoinRoomFlowError> {
     const validation = this.validateRoomIdInputUseCase.execute({ value: params.idOrLink })
     if (!validation.valid) {
-      return err({ type: 'room-not-found' })
+      return err({ type: 'invalid-room-input' })
     }
 
     const roomExists = await this.checkRoomExistsUseCase.execute({ roomId: validation.roomId })

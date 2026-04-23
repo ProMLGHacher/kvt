@@ -169,6 +169,7 @@ export class PrejoinViewModel extends ViewModel {
 
     this.state.update((current) => ({
       ...current,
+      error: null,
       joinButton: { ...current.joinButton, loading: true, enabled: false }
     }))
 
@@ -208,9 +209,30 @@ export class PrejoinViewModel extends ViewModel {
     })
 
     if (!result.ok) {
-      this.state.update((current) => ({ ...current, error: 'prejoin.errors.preview' }))
-      this.effects.emit({ type: 'preview-failed', message: 'prejoin.errors.preview' })
+      const message = mediaErrorMessage(result.error.type)
+      this.state.update((current) => ({
+        ...current,
+        error: message,
+        joinButton: {
+          ...current.joinButton,
+          enabled:
+            !current.micEnabled &&
+            !current.cameraEnabled &&
+            current.displayName.value.trim().length > 0
+        }
+      }))
+      this.effects.emit({ type: 'preview-failed', message })
+      return
     }
+
+    this.state.update((current) => ({
+      ...current,
+      error: null,
+      joinButton: {
+        ...current.joinButton,
+        enabled: current.displayName.value.trim().length > 0
+      }
+    }))
   }
 }
 
@@ -224,6 +246,31 @@ function prejoinContextErrorMessage(
       return 'prejoin.errors.mediaUnavailable'
     default:
       return 'prejoin.errors.load'
+  }
+}
+
+function mediaErrorMessage(
+  error:
+    | 'permission-denied'
+    | 'device-not-found'
+    | 'device-busy'
+    | 'insecure-context'
+    | 'api-unavailable'
+    | 'unknown-error'
+) {
+  switch (error) {
+    case 'permission-denied':
+      return 'prejoin.errors.permissionDenied'
+    case 'device-not-found':
+      return 'prejoin.errors.deviceNotFound'
+    case 'device-busy':
+      return 'prejoin.errors.deviceBusy'
+    case 'insecure-context':
+      return 'prejoin.errors.insecureContext'
+    case 'api-unavailable':
+      return 'prejoin.errors.apiUnavailable'
+    default:
+      return 'prejoin.errors.preview'
   }
 }
 

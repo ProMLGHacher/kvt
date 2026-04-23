@@ -37,12 +37,34 @@ export class BrowserLocalMediaRepository implements LocalMediaRepository {
       return err({ type: 'api-unavailable' })
     }
 
+    if (!window.isSecureContext) {
+      return err({ type: 'insecure-context' })
+    }
+
     this.mediaState.update((state) => ({
       ...state,
       preview: { ...state.preview, status: 'requesting', error: null }
     }))
 
     this.stopPreview()
+
+    if (!params.micEnabled && !params.cameraEnabled) {
+      this.mediaState.update((state) => ({
+        ...state,
+        tracks: state.tracks.map((track) =>
+          track.kind === 'audio' || track.kind === 'camera' ? { ...track, enabled: false } : track
+        ),
+        preview: {
+          micEnabled: false,
+          cameraEnabled: false,
+          previewAvailable: false,
+          stream: null,
+          status: 'ready',
+          error: null
+        }
+      }))
+      return ok(undefined)
+    }
 
     try {
       this.previewStream = await navigator.mediaDevices.getUserMedia({
@@ -100,7 +122,12 @@ export class BrowserLocalMediaRepository implements LocalMediaRepository {
       const mediaError = toMediaError(error)
       this.mediaState.update((state) => ({
         ...state,
-        preview: { ...state.preview, status: 'failed', error: mediaError, stream: null }
+        preview: {
+          ...state.preview,
+          status: mediaError.type === 'permission-denied' ? 'blocked' : 'failed',
+          error: mediaError,
+          stream: null
+        }
       }))
       return err(mediaError)
     }

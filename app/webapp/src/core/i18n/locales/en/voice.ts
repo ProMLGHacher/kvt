@@ -10,10 +10,13 @@ export default {
     joinDescription: 'Paste a room id or the full room link.',
     roomInputPlaceholder: 'clear-river-42',
     continue: 'Continue',
+    checking: 'Checking...',
     directJoinHint: 'No separate join page needed: the room opens directly.',
     errors: {
       roomInputRequired: 'Enter a room id or link',
       invalidRoom: 'Enter a valid room id or link',
+      roomNotFound: 'This room does not exist. Check the id or ask for a new link.',
+      checkRoom: 'Could not check the room. Check your connection and try again.',
       createRoom: 'Could not create room.'
     }
   },
@@ -40,6 +43,13 @@ export default {
         'This room is no longer available. It may have ended or the server may have restarted.',
       mediaUnavailable:
         'Could not read your devices. Check camera and microphone permissions in the browser.',
+      permissionDenied:
+        'The browser blocked access to the selected devices. Allow access in site settings or turn mic and camera off before joining.',
+      deviceNotFound: 'The selected device was not found. Connect it or choose another device.',
+      deviceBusy:
+        'Camera or microphone is already used by another app. Close it or choose another device.',
+      insecureContext: 'Camera and microphone require a secure page. Open the site over HTTPS.',
+      apiUnavailable: 'This browser does not support camera and microphone access for calls.',
       nameRequired: 'Name is required',
       enterName: 'Enter your name before joining.',
       join: 'Could not join room.',

@@ -85,7 +85,7 @@ func (s *RoomService) JoinRoomForBaseURL(ctx context.Context, token string, pref
 func (s *RoomService) GetRoomMetadata(ctx context.Context, roomID string) (RoomMetadata, error) {
 	room, err := s.rooms.FindByID(ctx, roomID)
 	if err != nil {
-		return RoomMetadata{}, err
+		return RoomMetadata{}, ErrRoomNotFound
 	}
 
 	roles := make([]domain.ParticipantRole, 0, len(room.Participants))
@@ -114,7 +114,7 @@ func (s *RoomService) JoinRoomByID(ctx context.Context, roomID string, prefs Pre
 func (s *RoomService) joinRoom(ctx context.Context, roomID string, role domain.ParticipantRole, prefs PrejoinPreferences, baseURL *url.URL) (JoinResult, error) {
 	room, err := s.rooms.FindByID(ctx, roomID)
 	if err != nil {
-		return JoinResult{}, err
+		return JoinResult{}, ErrRoomNotFound
 	}
 	if room == nil {
 		return JoinResult{}, ErrRoomNotFound

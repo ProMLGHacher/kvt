@@ -6,4 +6,7 @@ export type JoinRoomFlowResult = {
   roomId: string
 }
 
-export type JoinRoomFlowError = { type: 'unknown-error' } | { type: 'room-not-found' }
+export type JoinRoomFlowError =
+  | { type: 'invalid-room-input' }
+  | { type: 'unknown-error' }
+  | { type: 'room-not-found' }

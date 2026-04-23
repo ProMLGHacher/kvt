@@ -5,6 +5,7 @@ export type HomeUiState = {
   readonly idOrLinkToJoinState: FormFieldStateWithShowError<string>
   readonly joinButtonState: ButtonState
   readonly createRoomButtonState: ButtonState
+  readonly feedback: string | null
 }
 
 export type HomeUiAction =
@@ -19,5 +20,6 @@ export type HomeUiEffect =
 export const initialHomeState: HomeUiState = {
   idOrLinkToJoinState: { value: '', error: null, showError: false },
   joinButtonState: { enabled: false, loading: false, error: null },
-  createRoomButtonState: { enabled: true, loading: false, error: null }
+  createRoomButtonState: { enabled: true, loading: false, error: null },
+  feedback: null
 }

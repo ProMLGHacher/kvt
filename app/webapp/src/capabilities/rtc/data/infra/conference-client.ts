@@ -155,6 +155,15 @@ export class ConferenceClient {
         return
       }
 
+      if (!enabled && !this.localAudioTrack) {
+        await this.audioTransceiver.sender.replaceTrack(null)
+        this.publishLocalStream()
+        this.sendSlotUpdate('audio', false, false, false)
+        this.emitDiagnostics()
+        logInfo('rtc', 'microphone toggled', { enabled })
+        return
+      }
+
       if (!this.localAudioTrack) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
         this.localAudioTrack = stream.getAudioTracks()[0] ?? null

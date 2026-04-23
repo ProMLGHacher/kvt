@@ -112,6 +112,30 @@ func TestRoomMetadataEndpoint(t *testing.T) {
 	}
 }
 
+func TestMissingRoomMetadataReturnsNotFound(t *testing.T) {
+	roomRepo := repository.NewInMemoryRoomRepository()
+	sessionRepo := repository.NewInMemorySessionRepository()
+	clock := repository.NewFixedClock(time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC))
+	roomIDs := repository.NewDeterministicIDGenerator("river-sky-42")
+	ids := repository.NewDeterministicIDGenerator("host-seed")
+	baseURL, _ := url.Parse("http://fallback.invalid")
+	invites := application.NewHMACInviteService([]byte("secret"), clock, time.Hour)
+	roomService := application.NewRoomService(roomRepo, sessionRepo, invites, clock, roomIDs, ids, baseURL, nil)
+	hub := signaling.NewHub()
+	lookup := repository.NewSessionLookup(roomRepo, sessionRepo)
+	sfu := media.NewSFU(webrtc.NewAPI(), hub, lookup)
+	coordinator := application.NewSignalingCoordinator(roomRepo, sessionRepo, hub, lookup, &mediaBridgeAdapter{sfu: sfu})
+	server := NewServer(roomService, coordinator, hub)
+
+	roomRecorder := httptest.NewRecorder()
+	roomRequest := httptest.NewRequest(http.MethodGet, "http://localhost:8023/api/rooms/no-such-room", nil)
+	server.Handler().ServeHTTP(roomRecorder, roomRequest)
+
+	if roomRecorder.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 on missing room metadata, got %d with body %s", roomRecorder.Code, roomRecorder.Body.String())
+	}
+}
+
 func TestEndpointsUseRequestHostForWebSocketURLs(t *testing.T) {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	sessionRepo := repository.NewInMemorySessionRepository()

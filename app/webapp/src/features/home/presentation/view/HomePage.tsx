@@ -8,6 +8,8 @@ import {
   Button,
   Card,
   CardContent,
+  Alert,
+  AlertDescription,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -71,6 +73,11 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
           </CardHeader>
           <CardContent>
             <Field>
+              {uiState.feedback && (
+                <Alert variant="warning">
+                  <AlertDescription>{tx(uiState.feedback)}</AlertDescription>
+                </Alert>
+              )}
               <InputGroup className="flex-col gap-2 sm:flex-row">
                 <Input
                   aria-invalid={uiState.idOrLinkToJoinState.showError}
@@ -91,12 +98,12 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
                 />
                 <Button
                   className="w-full sm:w-auto"
-                  disabled={!uiState.joinButtonState.enabled}
+                  disabled={!uiState.joinButtonState.enabled || uiState.joinButtonState.loading}
                   onClick={() => viewModel.onEvent({ type: 'join-pressed' })}
                   type="button"
                   variant="secondary"
                 >
-                  {t('home.continue')}
+                  {uiState.joinButtonState.loading ? t('home.checking') : t('home.continue')}
                 </Button>
               </InputGroup>
               {uiState.idOrLinkToJoinState.showError ? (
