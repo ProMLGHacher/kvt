@@ -1,5 +1,5 @@
 import { kvtLayoutRoute, kvtRoute } from '@kvt/react'
-import { AppLayout, FeatureFallback } from '../App'
+import { AppLayout, FeatureFallback } from './App'
 import { HomePage } from '@features/home/presentation/view/HomePage'
 import { RoomPage } from '@features/room/presentation/view/RoomPage'
 
