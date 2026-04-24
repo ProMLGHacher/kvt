@@ -107,7 +107,7 @@ export class PrejoinViewModel extends ViewModel {
       selectedCameraId: preferences.preferredCameraId,
       joinButton: {
         ...state.joinButton,
-        enabled: Boolean(preferences.displayName?.trim())
+        enabled: false
       }
     }))
 
@@ -116,8 +116,9 @@ export class PrejoinViewModel extends ViewModel {
 
   private updateDisplayName(value: string) {
     const trimmed = value.trim()
-    this.state.update((state) => ({
-      ...state,
+    this.state.update((state) => {
+      const nextState: PrejoinUiState = {
+        ...state,
       displayName: {
         value,
         error: trimmed ? null : 'prejoin.errors.nameRequired',
@@ -125,9 +126,18 @@ export class PrejoinViewModel extends ViewModel {
       },
       joinButton: {
         ...state.joinButton,
-        enabled: trimmed.length > 0
+          enabled: false
       }
-    }))
+      }
+
+      return {
+        ...nextState,
+        joinButton: {
+          ...nextState.joinButton,
+          enabled: this.canJoin(nextState)
+        }
+      }
+    })
   }
 
   private async updateMicrophone(enabled: boolean) {
@@ -201,6 +211,12 @@ export class PrejoinViewModel extends ViewModel {
       return
     }
 
+    if (!this.canJoin(state)) {
+      const message = state.error ?? 'prejoin.errors.mediaUnavailable'
+      this.effects.emit({ type: 'join-failed', message })
+      return
+    }
+
     this.state.update((current) => ({
       ...current,
       error: null,
@@ -246,27 +262,46 @@ export class PrejoinViewModel extends ViewModel {
       const message = mediaErrorMessage(result.error.type)
       this.state.update((current) => ({
         ...current,
+        micEnabled: false,
+        cameraEnabled: false,
         error: message,
+        preview: current.preview
+          ? {
+              ...current.preview,
+              micEnabled: false,
+              cameraEnabled: false,
+              previewAvailable: false
+            }
+          : current.preview,
         joinButton: {
           ...current.joinButton,
-          enabled:
-            !current.micEnabled &&
-            !current.cameraEnabled &&
-            current.displayName.value.trim().length > 0
+          enabled: false
         }
       }))
       this.effects.emit({ type: 'preview-failed', message })
       return
     }
 
-    this.state.update((current) => ({
-      ...current,
-      error: null,
-      joinButton: {
-        ...current.joinButton,
-        enabled: current.displayName.value.trim().length > 0
+    this.state.update((current) => {
+      const nextState: PrejoinUiState = {
+        ...current,
+        error: null
       }
-    }))
+
+      return {
+        ...nextState,
+        joinButton: {
+          ...nextState.joinButton,
+          enabled: this.canJoin(nextState)
+        }
+      }
+    })
+  }
+
+  private canJoin(state: PrejoinUiState): boolean {
+    const hasDisplayName = state.displayName.value.trim().length > 0
+    const previewReady = state.preview?.status === 'ready'
+    return hasDisplayName && previewReady && !state.error
   }
 }
 
