@@ -16,7 +16,12 @@ export function logError(scope: string, message: string, data?: unknown) {
 const storageKey = 'kvt.rooms.client-logs'
 const maxEntries = 1000
 
-function appendClientLog(level: 'info' | 'warn' | 'error', scope: string, message: string, data?: unknown) {
+function appendClientLog(
+  level: 'info' | 'warn' | 'error',
+  scope: string,
+  message: string,
+  data?: unknown
+) {
   if (typeof localStorage === 'undefined') {
     return
   }

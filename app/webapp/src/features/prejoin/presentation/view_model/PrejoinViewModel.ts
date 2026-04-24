@@ -119,15 +119,15 @@ export class PrejoinViewModel extends ViewModel {
     this.state.update((state) => {
       const nextState: PrejoinUiState = {
         ...state,
-      displayName: {
-        value,
-        error: trimmed ? null : 'prejoin.errors.nameRequired',
-        showError: state.displayName.showError && !trimmed
-      },
-      joinButton: {
-        ...state.joinButton,
+        displayName: {
+          value,
+          error: trimmed ? null : 'prejoin.errors.nameRequired',
+          showError: state.displayName.showError && !trimmed
+        },
+        joinButton: {
+          ...state.joinButton,
           enabled: false
-      }
+        }
       }
 
       return {

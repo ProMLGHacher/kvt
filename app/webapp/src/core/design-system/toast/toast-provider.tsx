@@ -57,11 +57,20 @@ export function ToastProvider({ children }: { readonly children: ReactNode }) {
   }
 
   function enqueue(input: ToastInput, fallbackVariant: ToastVariant): string {
-    const next = normalizeToast(input, fallbackVariant, () => `toast-${Date.now()}-${idRef.current++}`)
-    setItems((current) => [...current.filter((item) => item.id !== next.id), next].slice(-MAX_VISIBLE_TOASTS))
+    const next = normalizeToast(
+      input,
+      fallbackVariant,
+      () => `toast-${Date.now()}-${idRef.current++}`
+    )
+    setItems((current) =>
+      [...current.filter((item) => item.id !== next.id), next].slice(-MAX_VISIBLE_TOASTS)
+    )
 
     if (next.durationMs !== 0) {
-      const timerId = window.setTimeout(() => dismiss(next.id), next.durationMs ?? DEFAULT_DURATION_MS)
+      const timerId = window.setTimeout(
+        () => dismiss(next.id),
+        next.durationMs ?? DEFAULT_DURATION_MS
+      )
       timersRef.current.set(next.id, timerId)
     }
 

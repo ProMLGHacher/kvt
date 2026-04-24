@@ -1,7 +1,7 @@
 import type ruCommon from '../ru/common'
-import type { ResourceShape } from '../../translation-key'
+import { defineResource } from '../../translation-key'
 
-export default {
+export default defineResource<typeof ruCommon>()({
   nav: {
     brand: 'KVT rooms',
     main: 'Home',
@@ -16,4 +16,4 @@ export default {
     title: 'Loading room...',
     description: 'Preparing the screen and app state.'
   }
-} as const satisfies ResourceShape<typeof ruCommon>
+} as const)

@@ -189,7 +189,7 @@ function RoomHeader({
             <Badge variant={status === 'connected' ? 'success' : 'default'}>{status}</Badge>
             <Badge>{t('room.header.participants', { count: participantCount })}</Badge>
           </div>
-          <h1 className="mt-2 break-words font-display text-xl font-black tracking-tight sm:text-2xl md:text-3xl">
+          <h1 className="mt-2 wrap-break-word font-display text-xl font-black tracking-tight sm:text-2xl md:text-3xl">
             {t('room.header.title', { roomId })}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t(actionStatus)}</p>

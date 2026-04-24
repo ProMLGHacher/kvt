@@ -24,7 +24,7 @@ export default {
   prejoin: {
     badge: 'Перед входом',
     cameraPreview: 'Превью камеры',
-    cameraOff: 'Камера выключена. Можно войти только со звуком.',
+    cameraOff: 'Камера выключена.',
     title: 'Готовы войти?',
     description: 'Укажите имя и выберите, как хотите подключиться к комнате.',
     nameLabel: 'Ваше имя',
@@ -61,6 +61,7 @@ export default {
   room: {
     header: {
       title: 'Комната {{roomId}}',
+      participants: '{{count}} участника',
       participants_one: '{{count}} участник',
       participants_few: '{{count}} участника',
       participants_many: '{{count}} участников',

@@ -1,7 +1,7 @@
 import type ruVoice from '../ru/voice'
-import type { ResourceShape } from '../../translation-key'
+import { defineResource } from '../../translation-key'
 
-export default {
+export default defineResource<typeof ruVoice>()({
   home: {
     badge: 'Voice rooms',
     title: 'Start a room when the conversation is ready.',
@@ -26,7 +26,7 @@ export default {
   prejoin: {
     badge: 'Prejoin',
     cameraPreview: 'Camera preview',
-    cameraOff: 'Camera is off. You can join with audio only.',
+    cameraOff: 'Camera is off.',
     title: 'Ready to join?',
     description: 'Set your name and choose how you want to enter the room.',
     nameLabel: 'Your name',
@@ -62,6 +62,7 @@ export default {
   room: {
     header: {
       title: 'Room {{roomId}}',
+      participants: '{{count}} participants',
       participants_one: '{{count}} participant',
       participants_few: '{{count}} participants',
       participants_many: '{{count}} participants',
@@ -148,4 +149,4 @@ export default {
       }
     }
   }
-} as const satisfies ResourceShape<typeof ruVoice>
+} as const)

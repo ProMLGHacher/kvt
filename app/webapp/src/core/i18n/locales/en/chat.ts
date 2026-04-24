@@ -1,7 +1,7 @@
 import type ruChat from '../ru/chat'
-import type { ResourceShape } from '../../translation-key'
+import { defineResource } from '../../translation-key'
 
-export default {
+export default defineResource<typeof ruChat>()({
   eyebrow: 'KVT clean demo',
   title: 'Team chat',
   panes: {
@@ -51,4 +51,4 @@ export default {
     list: 'Resize chat list',
     details: 'Resize details pane'
   }
-} as const satisfies ResourceShape<typeof ruChat>
+} as const)
