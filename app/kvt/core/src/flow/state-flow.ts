@@ -29,8 +29,14 @@ export class MutableStateFlow<T> implements StateFlow<T> {
     this.emit(value)
   }
 
-  update(reducer: (current: T) => T) {
-    this.set(reducer(this.currentValue))
+  update(next: Partial<T>): void
+  update(reducer: (current: T) => T): void
+  update(arg: Partial<T> | ((current: T) => T)): void {
+    if (typeof arg === 'function') {
+      this.set(arg(this.currentValue))
+    } else {
+      this.set({ ...this.currentValue, ...arg })
+    }
   }
 
   subscribe(listener: FlowListener<T>): Disposable {

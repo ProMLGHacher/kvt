@@ -13,9 +13,35 @@ import type { ObserveLocalMediaUseCase } from '@capabilities/media/domain/usecas
 import type { SetMicrophoneEnabledUseCase } from '@capabilities/media/domain/usecases/SetMicrophoneEnabledUseCase'
 import type { SetCameraEnabledUseCase } from '@capabilities/media/domain/usecases/SetCameraEnabledUseCase'
 
+type PrejoinContextError = 'room-not-found' | 'media-unavailable' | 'unknown-error'
+
+type MediaError =
+  | 'permission-denied'
+  | 'device-not-found'
+  | 'device-busy'
+  | 'insecure-context'
+  | 'api-unavailable'
+  | 'unknown-error'
+
+type PrejoinJoinError =
+  | 'display-name-empty'
+  | 'room-not-found'
+  | 'join-failed'
+  | 'preferences-save-failed'
+  | 'unknown-error'
+
 export class PrejoinViewModel extends ViewModel {
   private readonly state = new MutableStateFlow<PrejoinUiState>(initialPrejoinState)
   private readonly effects = new MutableSharedFlow<PrejoinUiEffect>()
+
+  // Нужны, чтобы старый async-ответ не перезаписал новое состояние.
+  private configureRoomRequestId = 0
+  private startPreviewRequestId = 0
+  private microphoneRequestId = 0
+  private cameraRequestId = 0
+
+  // Храним отдельно, потому что в UiState нет отдельного флага загрузки preview.
+  private previewStarting = false
 
   readonly uiState = this.state.asStateFlow()
   readonly uiEffect = this.effects.asSharedFlow()
@@ -33,7 +59,10 @@ export class PrejoinViewModel extends ViewModel {
 
   protected override onInit() {
     return this.observeLocalMediaUseCase.execute().subscribe((media) => {
-      this.state.update((state) => ({ ...state, preview: media.preview }))
+      this.updateState((state) => ({
+        ...state,
+        preview: media.preview
+      }))
     })
   }
 
@@ -52,10 +81,10 @@ export class PrejoinViewModel extends ViewModel {
         void this.updateCamera(event.enabled)
         break
       case 'microphone-selected':
-        this.state.update((state) => ({ ...state, selectedMicrophoneId: event.deviceId }))
+        void this.selectMicrophone(event.deviceId)
         break
       case 'camera-selected':
-        this.state.update((state) => ({ ...state, selectedCameraId: event.deviceId }))
+        void this.selectCamera(event.deviceId)
         break
       case 'join-pressed':
         void this.join()
@@ -70,7 +99,9 @@ export class PrejoinViewModel extends ViewModel {
       return
     }
 
-    this.state.update((state) => ({
+    const requestId = ++this.configureRoomRequestId
+
+    this.updateState((state) => ({
       ...state,
       roomId,
       role,
@@ -78,23 +109,33 @@ export class PrejoinViewModel extends ViewModel {
       error: null
     }))
 
-    const context = await this.loadPrejoinContextUseCase.execute({ roomId, requestedRole: role })
-    if (!context.ok) {
-      const message = prejoinContextErrorMessage(context.error.type)
-      this.state.update((state) => ({
+    const contextResult = await this.loadPrejoinContextUseCase.execute({
+      roomId,
+      requestedRole: role
+    })
+
+    if (!this.isActualConfigureRoomRequest(requestId)) {
+      return
+    }
+
+    if (!contextResult.ok) {
+      const message = prejoinContextErrorMessage(contextResult.error.type)
+
+      this.updateState((state) => ({
         ...state,
         loading: false,
         error: message
       }))
+
       this.effects.emit({ type: 'load-failed', message })
       return
     }
 
-    const preferences = context.value.preferences
-    this.state.update((state) => ({
+    const preferences = contextResult.value.preferences
+
+    this.updateState((state) => ({
       ...state,
-      loading: false,
-      devices: context.value.devices,
+      devices: contextResult.value.devices,
       role,
       displayName: {
         value: preferences.displayName ?? '',
@@ -104,64 +145,81 @@ export class PrejoinViewModel extends ViewModel {
       micEnabled: preferences.defaultMicEnabled,
       cameraEnabled: preferences.defaultCameraEnabled,
       selectedMicrophoneId: preferences.preferredMicrophoneId,
-      selectedCameraId: preferences.preferredCameraId,
-      joinButton: {
-        ...state.joinButton,
-        enabled: false
-      }
+      selectedCameraId: preferences.preferredCameraId
     }))
 
-    await this.startPreview()
+    // После загрузки контекста сразу запускаем локальный preview с выбранными настройками.
+    await this.startPreview(requestId)
+
+    if (!this.isActualConfigureRoomRequest(requestId)) {
+      return
+    }
+
+    this.updateState((state) => ({
+      ...state,
+      loading: false
+    }))
   }
 
   private updateDisplayName(value: string) {
     const trimmed = value.trim()
-    this.state.update((state) => {
-      const nextState: PrejoinUiState = {
-        ...state,
-        displayName: {
-          value,
-          error: trimmed ? null : 'prejoin.errors.nameRequired',
-          showError: state.displayName.showError && !trimmed
-        },
-        joinButton: {
-          ...state.joinButton,
-          enabled: false
-        }
-      }
 
-      return {
-        ...nextState,
-        joinButton: {
-          ...nextState.joinButton,
-          enabled: this.canJoin(nextState)
-        }
+    this.updateState((state) => ({
+      ...state,
+      displayName: {
+        value,
+        error: trimmed ? null : 'prejoin.errors.nameRequired',
+        showError: state.displayName.showError && !trimmed
       }
-    })
+    }))
   }
 
   private async updateMicrophone(enabled: boolean) {
-    this.state.update((state) => ({
+    const requestId = ++this.microphoneRequestId
+
+    this.updateState((state) => ({
       ...state,
       micEnabled: enabled,
-      preview: state.preview ? { ...state.preview, micEnabled: enabled } : state.preview
+      preview: state.preview
+        ? {
+            ...state.preview,
+            micEnabled: enabled
+          }
+        : state.preview
     }))
 
     const result = await this.setMicrophoneEnabledUseCase.execute(enabled)
-    if (!result.ok) {
-      const message = mediaErrorMessage(result.error.type)
-      this.state.update((state) => ({
-        ...state,
-        error: message,
-        micEnabled: !enabled,
-        preview: state.preview ? { ...state.preview, micEnabled: !enabled } : state.preview
-      }))
-      this.effects.emit({ type: 'preview-failed', message })
+
+    if (!this.isActualMicrophoneRequest(requestId)) {
+      return
     }
+
+    if (result.ok) {
+      return
+    }
+
+    const message = mediaErrorMessage(result.error.type)
+
+    this.updateState((state) => ({
+      ...state,
+      error: message,
+      // При ошибке считаем микрофон выключенным, а не откатываем в старое значение.
+      micEnabled: false,
+      preview: state.preview
+        ? {
+            ...state.preview,
+            micEnabled: false
+          }
+        : state.preview
+    }))
+
+    this.effects.emit({ type: 'preview-failed', message })
   }
 
   private async updateCamera(enabled: boolean) {
-    this.state.update((state) => ({
+    const requestId = ++this.cameraRequestId
+
+    this.updateState((state) => ({
       ...state,
       cameraEnabled: enabled,
       preview: state.preview
@@ -175,23 +233,53 @@ export class PrejoinViewModel extends ViewModel {
     }))
 
     const result = await this.setCameraEnabledUseCase.execute(enabled)
-    if (!result.ok) {
-      const message = mediaErrorMessage(result.error.type)
-      this.state.update((state) => ({
-        ...state,
-        error: message,
-        cameraEnabled: !enabled,
-        preview: state.preview
-          ? {
-              ...state.preview,
-              cameraEnabled: !enabled,
-              previewAvailable: !enabled ? state.preview.previewAvailable : false,
-              status: !enabled ? state.preview.status : 'idle'
-            }
-          : state.preview
-      }))
-      this.effects.emit({ type: 'preview-failed', message })
+
+    if (!this.isActualCameraRequest(requestId)) {
+      return
     }
+
+    if (result.ok) {
+      return
+    }
+
+    const message = mediaErrorMessage(result.error.type)
+
+    this.updateState((state) => ({
+      ...state,
+      error: message,
+      // При ошибке считаем камеру выключенной, потому что включить её не удалось.
+      cameraEnabled: false,
+      preview: state.preview
+        ? {
+            ...state.preview,
+            cameraEnabled: false,
+            previewAvailable: false,
+            status: 'idle'
+          }
+        : state.preview
+    }))
+
+    this.effects.emit({ type: 'preview-failed', message })
+  }
+
+  private async selectMicrophone(deviceId: string | null) {
+    this.updateState((state) => ({
+      ...state,
+      selectedMicrophoneId: deviceId
+    }))
+
+    // Выбор нового устройства должен примениться к локальному preview.
+    await this.startPreview()
+  }
+
+  private async selectCamera(deviceId: string | null) {
+    this.updateState((state) => ({
+      ...state,
+      selectedCameraId: deviceId
+    }))
+
+    // Выбор нового устройства должен примениться к локальному preview.
+    await this.startPreview()
   }
 
   private async join() {
@@ -199,7 +287,7 @@ export class PrejoinViewModel extends ViewModel {
     const displayName = state.displayName.value.trim()
 
     if (!displayName) {
-      this.state.update((current) => ({
+      this.updateState((current) => ({
         ...current,
         displayName: {
           ...current.displayName,
@@ -207,20 +295,25 @@ export class PrejoinViewModel extends ViewModel {
           showError: true
         }
       }))
+
       this.effects.emit({ type: 'join-failed', message: 'prejoin.errors.enterName' })
       return
     }
 
     if (!this.canJoin(state)) {
       const message = state.error ?? 'prejoin.errors.mediaUnavailable'
+
       this.effects.emit({ type: 'join-failed', message })
       return
     }
 
-    this.state.update((current) => ({
+    this.updateState((current) => ({
       ...current,
       error: null,
-      joinButton: { ...current.joinButton, loading: true, enabled: false }
+      joinButton: {
+        ...current.joinButton,
+        loading: true
+      }
     }))
 
     const result = await this.joinRoomFlowUseCase.execute({
@@ -233,22 +326,41 @@ export class PrejoinViewModel extends ViewModel {
       role: state.role
     })
 
-    this.state.update((current) => ({
+    if (result.ok) {
+      this.updateState((current) => ({
+        ...current,
+        joinButton: {
+          ...current.joinButton,
+          loading: false
+        }
+      }))
+
+      this.effects.emit({ type: 'joined', roomId: result.value.session.roomId })
+      return
+    }
+
+    const message = prejoinJoinErrorMessage(result.error.type)
+
+    this.updateState((current) => ({
       ...current,
-      joinButton: { ...current.joinButton, loading: false, enabled: true }
+      error: message,
+      joinButton: {
+        ...current.joinButton,
+        loading: false
+      }
     }))
 
-    if (result.ok) {
-      this.effects.emit({ type: 'joined', roomId: result.value.session.roomId })
-    } else {
-      const message = prejoinJoinErrorMessage(result.error.type)
-      this.state.update((current) => ({ ...current, error: message }))
-      this.effects.emit({ type: 'join-failed', message })
-    }
+    this.effects.emit({ type: 'join-failed', message })
   }
 
-  private async startPreview() {
+  private async startPreview(configureRoomRequestId?: number) {
+    const requestId = ++this.startPreviewRequestId
+
+    this.previewStarting = true
+    this.updateState((state) => state)
+
     const state = this.state.value
+
     const result = await this.startPrejoinPreviewUseCase.execute({
       displayName: state.displayName.value,
       micEnabled: state.micEnabled,
@@ -258,40 +370,59 @@ export class PrejoinViewModel extends ViewModel {
       noiseSuppressionEnabled: true
     })
 
-    if (!result.ok) {
-      const message = mediaErrorMessage(result.error.type)
-      this.state.update((current) => ({
-        ...current,
-        micEnabled: false,
-        cameraEnabled: false,
-        error: message,
-        preview: current.preview
-          ? {
-              ...current.preview,
-              micEnabled: false,
-              cameraEnabled: false,
-              previewAvailable: false
-            }
-          : current.preview,
-        joinButton: {
-          ...current.joinButton,
-          enabled: false
-        }
-      }))
-      this.effects.emit({ type: 'preview-failed', message })
+    if (!this.isActualStartPreviewRequest(requestId)) {
       return
     }
 
-    this.state.update((current) => {
-      const nextState: PrejoinUiState = {
+    this.previewStarting = false
+
+    if (
+      configureRoomRequestId !== undefined &&
+      !this.isActualConfigureRoomRequest(configureRoomRequestId)
+    ) {
+      this.updateState((current) => current)
+      return
+    }
+
+    if (result.ok) {
+      this.updateState((current) => ({
         ...current,
         error: null
-      }
+      }))
+
+      return
+    }
+
+    const message = mediaErrorMessage(result.error.type)
+
+    this.updateState((current) => ({
+      ...current,
+      micEnabled: false,
+      cameraEnabled: false,
+      error: message,
+      preview: current.preview
+        ? {
+            ...current.preview,
+            micEnabled: false,
+            cameraEnabled: false,
+            previewAvailable: false,
+            status: 'idle'
+          }
+        : current.preview
+    }))
+
+    this.effects.emit({ type: 'preview-failed', message })
+  }
+
+  private updateState(updater: (state: PrejoinUiState) => PrejoinUiState) {
+    this.state.update((state) => {
+      const nextState = updater(state)
 
       return {
         ...nextState,
         joinButton: {
           ...nextState.joinButton,
+          // joinButton.enabled — производное состояние, поэтому пересчитываем его централизованно.
           enabled: this.canJoin(nextState)
         }
       }
@@ -300,63 +431,79 @@ export class PrejoinViewModel extends ViewModel {
 
   private canJoin(state: PrejoinUiState): boolean {
     const hasDisplayName = state.displayName.value.trim().length > 0
-    const previewReady = state.preview?.status === 'ready'
-    return hasDisplayName && previewReady && !state.error
+    const mediaReady = this.isMediaReadyToJoin(state)
+
+    return (
+      hasDisplayName &&
+      mediaReady &&
+      !state.error &&
+      !state.loading &&
+      !state.joinButton.loading &&
+      !this.previewStarting
+    )
+  }
+
+  private isMediaReadyToJoin(state: PrejoinUiState): boolean {
+    if (!state.preview) {
+      return false
+    }
+
+    // Вход без камеры разрешён, поэтому ready-статус нужен только при включенной камере.
+    if (!state.cameraEnabled) {
+      return true
+    }
+
+    return state.preview.status === 'ready'
+  }
+
+  private isActualConfigureRoomRequest(requestId: number): boolean {
+    return requestId === this.configureRoomRequestId
+  }
+
+  private isActualStartPreviewRequest(requestId: number): boolean {
+    return requestId === this.startPreviewRequestId
+  }
+
+  private isActualMicrophoneRequest(requestId: number): boolean {
+    return requestId === this.microphoneRequestId
+  }
+
+  private isActualCameraRequest(requestId: number): boolean {
+    return requestId === this.cameraRequestId
   }
 }
 
-function prejoinContextErrorMessage(
-  error: 'room-not-found' | 'media-unavailable' | 'unknown-error'
-): PrejoinErrorMessageKey {
-  switch (error) {
-    case 'room-not-found':
-      return 'prejoin.errors.roomNotFound'
-    case 'media-unavailable':
-      return 'prejoin.errors.mediaUnavailable'
-    default:
-      return 'prejoin.errors.load'
-  }
+const prejoinContextErrorMessages = {
+  'room-not-found': 'prejoin.errors.roomNotFound',
+  'media-unavailable': 'prejoin.errors.mediaUnavailable',
+  'unknown-error': 'prejoin.errors.load'
+} satisfies Record<PrejoinContextError, PrejoinErrorMessageKey>
+
+const mediaErrorMessages = {
+  'permission-denied': 'prejoin.errors.permissionDenied',
+  'device-not-found': 'prejoin.errors.deviceNotFound',
+  'device-busy': 'prejoin.errors.deviceBusy',
+  'insecure-context': 'prejoin.errors.insecureContext',
+  'api-unavailable': 'prejoin.errors.apiUnavailable',
+  'unknown-error': 'prejoin.errors.preview'
+} satisfies Record<MediaError, PrejoinErrorMessageKey>
+
+const prejoinJoinErrorMessages = {
+  'display-name-empty': 'prejoin.errors.enterName',
+  'room-not-found': 'prejoin.errors.roomNotFound',
+  'join-failed': 'prejoin.errors.join',
+  'preferences-save-failed': 'prejoin.errors.join',
+  'unknown-error': 'prejoin.errors.join'
+} satisfies Record<PrejoinJoinError, PrejoinErrorMessageKey>
+
+function prejoinContextErrorMessage(error: PrejoinContextError): PrejoinErrorMessageKey {
+  return prejoinContextErrorMessages[error]
 }
 
-function mediaErrorMessage(
-  error:
-    | 'permission-denied'
-    | 'device-not-found'
-    | 'device-busy'
-    | 'insecure-context'
-    | 'api-unavailable'
-    | 'unknown-error'
-): PrejoinErrorMessageKey {
-  switch (error) {
-    case 'permission-denied':
-      return 'prejoin.errors.permissionDenied'
-    case 'device-not-found':
-      return 'prejoin.errors.deviceNotFound'
-    case 'device-busy':
-      return 'prejoin.errors.deviceBusy'
-    case 'insecure-context':
-      return 'prejoin.errors.insecureContext'
-    case 'api-unavailable':
-      return 'prejoin.errors.apiUnavailable'
-    default:
-      return 'prejoin.errors.preview'
-  }
+function mediaErrorMessage(error: MediaError): PrejoinErrorMessageKey {
+  return mediaErrorMessages[error]
 }
 
-function prejoinJoinErrorMessage(
-  error:
-    | 'display-name-empty'
-    | 'room-not-found'
-    | 'join-failed'
-    | 'preferences-save-failed'
-    | 'unknown-error'
-): PrejoinErrorMessageKey {
-  switch (error) {
-    case 'display-name-empty':
-      return 'prejoin.errors.enterName'
-    case 'room-not-found':
-      return 'prejoin.errors.roomNotFound'
-    default:
-      return 'prejoin.errors.join'
-  }
+function prejoinJoinErrorMessage(error: PrejoinJoinError): PrejoinErrorMessageKey {
+  return prejoinJoinErrorMessages[error]
 }
