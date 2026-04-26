@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, type ReactNode } from 'react'
+import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useSharedFlow, useStateFlow, useViewModel, type PropsWithVM } from '@kvt/react'
 import { useTranslation } from 'react-i18next'
@@ -16,13 +16,27 @@ import {
   cn,
   useToast
 } from '@core/design-system'
+import type { RtcMediaStreams } from '@capabilities/rtc/domain/model'
 import type { Participant, ParticipantSlotKind } from '@features/room/domain/model/Participant'
 import { PrejoinModal } from '@features/prejoin/presentation/view/PrejoinModal'
-import { RoomViewModel } from '../view_model/RoomViewModel'
-import type { RoomStatusMessageKey } from '../model/RoomState'
 import { useAttachMediaStream } from '@core/react/useAttachMediaStream'
+import type { RoomStatusMessageKey } from '../model/RoomState'
+import { RoomViewModel } from '../view_model/RoomViewModel'
 
 type VoiceT = TFunction<'voice'>
+type RoomTileKind = 'presence' | 'camera' | 'screen'
+
+type ParticipantMediaTile = {
+  readonly id: string
+  readonly participant: Participant
+  readonly kind: RoomTileKind
+  readonly stream: MediaStream | null
+  readonly local: boolean
+  readonly audioOn: boolean
+  readonly cameraOn: boolean
+  readonly screenOn: boolean
+  readonly awaitingMedia: boolean
+}
 
 export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): ReactNode {
   const { roomId = '' } = useParams()
@@ -31,7 +45,6 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
   const uiState = useStateFlow(viewModel.uiState)
   const toasts = useToast()
   const { t } = useTranslation('voice')
-
   useEffect(() => {
     viewModel.onEvent({ type: 'room-opened', roomId })
   }, [roomId, viewModel])
@@ -52,7 +65,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
   })
 
   return (
-    <section className="mx-auto flex min-h-[calc(100vh-4.5rem)] w-full max-w-7xl flex-col gap-3 px-3 py-3 sm:px-4 md:px-6">
+    <section className="mx-auto flex min-h-[calc(100vh-4.5rem)] w-full max-w-[96rem] flex-col gap-3 px-3 py-3 sm:px-4 md:px-6">
       <RoomTopBar
         actionStatus={uiState.actionStatus}
         participantCount={uiState.participants.length}
@@ -78,14 +91,15 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
           <div
             className={cn(
               'grid min-h-0 flex-1 gap-3',
-              uiState.technicalInfoVisible ? 'xl:grid-cols-[minmax(0,1fr)_22rem]' : 'grid-cols-1'
+              uiState.technicalInfoVisible ? '2xl:grid-cols-[minmax(0,1fr)_22rem]' : 'grid-cols-1'
             )}
           >
             <ConferenceStage
+              key={`stage:${roomId}`}
+              localMediaStreams={uiState.localMediaStreams}
               localParticipantId={uiState.localParticipantId}
-              localStream={uiState.localStream}
               participants={uiState.participants}
-              remoteStreams={uiState.remoteStreams}
+              remoteMediaStreams={uiState.remoteMediaStreams}
               t={t}
             />
 
@@ -100,6 +114,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
           </div>
 
           <BottomDock
+            key={`dock:${roomId}`}
             cameraEnabled={uiState.camera.enabled}
             microphoneEnabled={uiState.microphone.enabled}
             screenEnabled={uiState.screenShare.enabled}
@@ -144,13 +159,14 @@ function RoomTopBar({
 
   return (
     <Card className="rounded-4xl border-border/80 bg-surface">
-      <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <CardContent className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={status === 'connected' ? 'success' : 'default'}>{status}</Badge>
             <Badge>{t('room.header.participants', { count: participantCount })}</Badge>
+            <Badge className="truncate">{roomId}</Badge>
           </div>
-          <h1 className="mt-3 truncate text-xl font-medium text-foreground sm:text-2xl">
+          <h1 className="mt-3 text-lg font-medium text-foreground sm:text-xl">
             {t('room.header.title', { roomId })}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t(actionStatus)}</p>
@@ -181,16 +197,18 @@ function RoomTopBar({
 function ConferenceStage({
   participants,
   localParticipantId,
-  localStream,
-  remoteStreams,
+  localMediaStreams,
+  remoteMediaStreams,
   t
 }: {
   readonly participants: readonly Participant[]
   readonly localParticipantId: string | null
-  readonly localStream: MediaStream | null
-  readonly remoteStreams: Readonly<Record<string, MediaStream>>
+  readonly localMediaStreams: RtcMediaStreams
+  readonly remoteMediaStreams: Readonly<Record<string, RtcMediaStreams>>
   readonly t: VoiceT
 }) {
+  const [pinnedTileId, setPinnedTileId] = useState<string | null>(null)
+
   if (!participants.length) {
     return (
       <Empty className="min-h-[24rem] rounded-4xl bg-surface">
@@ -202,82 +220,159 @@ function ConferenceStage({
     )
   }
 
+  const tiles = buildParticipantTiles(
+    participants,
+    localParticipantId,
+    localMediaStreams,
+    remoteMediaStreams
+  )
+  const sortedTiles = [...tiles].sort((left, right) => {
+    if (left.id === pinnedTileId) return -1
+    if (right.id === pinnedTileId) return 1
+    if (left.kind === 'screen' && right.kind !== 'screen') return -1
+    if (right.kind === 'screen' && left.kind !== 'screen') return 1
+    if (left.local !== right.local) return left.local ? -1 : 1
+    return left.participant.displayName.localeCompare(right.participant.displayName)
+  })
+
   return (
-    <ScrollArea className="min-h-0 rounded-4xl">
-      <div className="grid min-h-full auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {participants.map((participant) => (
-          <ParticipantTile
-            key={participant.id}
-            local={participant.id === localParticipantId}
-            participant={participant}
-            stream={
-              participant.id === localParticipantId ? localStream : remoteStreams[participant.id]
-            }
-            t={t}
-          />
-        ))}
+    <div className="grid min-h-0 gap-3">
+      <ScrollArea className="min-h-0 rounded-4xl">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {sortedTiles.map((tile) => (
+            <ParticipantTile
+              key={tile.id}
+              pinned={tile.id === pinnedTileId}
+              t={t}
+              tile={tile}
+              onPin={() => setPinnedTileId(tile.id === pinnedTileId ? null : tile.id)}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+
+      <div className="contents">
+        {participants.map((participant) => {
+          const mediaStreams =
+            participant.id === localParticipantId
+              ? localMediaStreams
+              : (remoteMediaStreams[participant.id] ?? {})
+          const audioStream = mediaStreams.audio ?? null
+          const audioOn = slotEnabled(participant, 'audio')
+
+          if (!audioOn || !audioStream || participant.id === localParticipantId) {
+            return null
+          }
+
+          return <ParticipantAudio key={`${participant.id}:audio`} stream={audioStream} />
+        })}
       </div>
-    </ScrollArea>
+    </div>
   )
 }
 
 function ParticipantTile({
-  participant,
-  local,
-  stream,
+  tile,
+  pinned,
+  onPin,
   t
 }: {
-  readonly participant: Participant
-  readonly local: boolean
-  readonly stream: MediaStream | null | undefined
+  readonly tile: ParticipantMediaTile
+  readonly pinned: boolean
+  readonly onPin: () => void
   readonly t: VoiceT
 }) {
-  const cameraOn = slotEnabled(participant, 'camera')
-  const screenOn = slotEnabled(participant, 'screen')
-  const audioOn = slotEnabled(participant, 'audio')
-  const showVideo = Boolean(stream) && (cameraOn || screenOn)
-  const awaitingMedia = !stream && (audioOn || cameraOn || screenOn)
+  const fullscreenRef = useRef<HTMLDivElement | null>(null)
+  const title =
+    tile.kind === 'screen'
+      ? t('room.participant.screenFrom', { name: tile.participant.displayName })
+      : tile.participant.displayName
 
   return (
-    <Card className="overflow-hidden rounded-4xl border-border bg-slate-950 text-white">
-      <div className="relative grid aspect-[4/5] place-items-center overflow-hidden sm:aspect-video">
-        {showVideo && stream ? (
-          <ParticipantVideo muted={local} stream={stream} />
+    <Card
+      className={cn(
+        'overflow-hidden rounded-4xl border-border bg-slate-950 text-white',
+        pinned && 'md:col-span-2 xl:col-span-2'
+      )}
+    >
+      <div
+        ref={fullscreenRef}
+        className={cn(
+          'relative overflow-hidden bg-slate-950',
+          tile.kind === 'screen'
+            ? pinned
+              ? 'aspect-[16/9] min-h-[22rem]'
+              : 'aspect-[16/10]'
+            : pinned
+              ? 'aspect-[16/9] min-h-[20rem]'
+              : 'aspect-video',
+          tile.kind === 'presence' && 'min-h-[15rem]'
+        )}
+      >
+        {tile.stream ? (
+          <ParticipantVideo
+            muted={tile.local}
+            objectFit={tile.kind === 'screen' ? 'contain' : 'cover'}
+            stream={tile.stream}
+          />
         ) : (
-          <div className="grid gap-4 p-6 text-center">
-            <div className="mx-auto grid size-24 place-items-center rounded-full bg-white/10 text-4xl font-medium">
-              {participant.displayName.slice(0, 1).toUpperCase()}
+          <div className="grid h-full place-items-center p-6 text-center">
+            <div>
+              <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/10 text-3xl font-medium sm:size-24 sm:text-4xl">
+                {tile.participant.displayName.slice(0, 1).toUpperCase()}
+              </div>
+              {tile.awaitingMedia && (
+                <p className="mt-4 max-w-64 text-sm leading-6 text-slate-300">
+                  {t('room.participant.waitingMedia')}
+                </p>
+              )}
             </div>
-            {awaitingMedia && (
-              <p className="max-w-56 text-sm leading-6 text-slate-300">
-                {t('room.participant.waitingMedia')}
-              </p>
-            )}
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-slate-950/80 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-slate-950/85 to-transparent" />
         <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            {local && <Badge variant="info">{t('room.participant.you')}</Badge>}
-            {screenOn && <Badge variant="warning">{t('room.participant.screen')}</Badge>}
+            {tile.local && <Badge variant="info">{t('room.participant.you')}</Badge>}
+            {tile.kind === 'screen' && (
+              <Badge variant="warning">{t('room.participant.screen')}</Badge>
+            )}
+            {pinned && <Badge variant="success">{t('room.participant.pinned')}</Badge>}
           </div>
-          <div className="flex gap-1">
-            <Pill enabled={audioOn} label={t('room.participant.mic')} />
-            <Pill enabled={cameraOn} label={t('room.participant.cam')} />
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-black/50"
+              onClick={onPin}
+              type="button"
+            >
+              {pinned ? t('room.participant.unpin') : t('room.participant.pin')}
+            </button>
+            {tile.kind === 'screen' && (
+              <button
+                className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-black/50"
+                onClick={() => {
+                  void fullscreenRef.current?.requestFullscreen?.()
+                }}
+                type="button"
+              >
+                {t('room.participant.fullscreen')}
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-base font-medium">{participant.displayName}</p>
-            <p className="text-xs text-slate-300">
-              {t(`room.participant.roles.${participant.role}`)}
-            </p>
-          </div>
+        <div className="absolute left-3 right-3 top-14 flex flex-wrap gap-1">
+          <Pill enabled={tile.audioOn} label={t('room.participant.mic')} />
+          <Pill enabled={tile.cameraOn} label={t('room.participant.cam')} />
+          {tile.screenOn && <Pill enabled label={t('room.participant.screen')} />}
         </div>
 
-        {audioOn && stream && !local && <ParticipantAudio stream={stream} />}
+        <div className="absolute bottom-3 left-3 right-3">
+          <p className="truncate text-base font-medium">{title}</p>
+          <p className="truncate text-xs text-slate-300">
+            {t(`room.participant.roles.${tile.participant.role}`)}
+          </p>
+        </div>
       </div>
     </Card>
   )
@@ -285,16 +380,27 @@ function ParticipantTile({
 
 const ParticipantVideo = memo(function ParticipantVideo({
   stream,
-  muted
+  muted,
+  objectFit
 }: {
   readonly stream: MediaStream
   readonly muted: boolean
+  readonly objectFit: 'cover' | 'contain'
 }) {
   const ref = useRef<HTMLVideoElement | null>(null)
   useAttachMediaStream(ref, stream)
 
   return (
-    <video autoPlay className="h-full w-full object-cover" muted={muted} playsInline ref={ref} />
+    <video
+      autoPlay
+      className={cn(
+        'h-full w-full bg-slate-950',
+        objectFit === 'contain' ? 'object-contain' : 'object-cover'
+      )}
+      muted={muted}
+      playsInline
+      ref={ref}
+    />
   )
 })
 
@@ -339,27 +445,63 @@ function BottomDock({
   readonly onScreen: () => void
   readonly t: VoiceT
 }) {
+  const [collapsed, setCollapsed] = useState(false)
+  const touchStartY = useRef<number | null>(null)
+
   return (
-    <div className="sticky bottom-3 z-20 flex justify-center">
-      <Card className="rounded-full border-border/80 bg-surface shadow-md">
-        <CardContent className="flex flex-wrap items-center justify-center gap-2 p-2">
-          <DockButton
-            active={microphoneEnabled}
-            label={microphoneEnabled ? t('room.controls.mute') : t('room.controls.unmute')}
-            onClick={onMicrophone}
-          />
-          <DockButton
-            active={cameraEnabled}
-            label={cameraEnabled ? t('room.controls.cameraOff') : t('room.controls.cameraOn')}
-            onClick={onCamera}
-          />
-          <DockButton
-            active={screenEnabled}
-            label={screenEnabled ? t('room.controls.stopShare') : t('room.controls.shareScreen')}
-            onClick={onScreen}
-          />
-        </CardContent>
-      </Card>
+    <div
+      className="sticky bottom-3 z-20 flex justify-center"
+      onTouchEnd={(event) => {
+        if (touchStartY.current === null) {
+          return
+        }
+
+        const delta = event.changedTouches[0].clientY - touchStartY.current
+        if (delta > 48) {
+          setCollapsed(true)
+        } else if (delta < -48) {
+          setCollapsed(false)
+        }
+        touchStartY.current = null
+      }}
+      onTouchStart={(event) => {
+        touchStartY.current = event.touches[0]?.clientY ?? null
+      }}
+    >
+      <div className="flex w-full max-w-sm flex-col items-center gap-2 md:max-w-none">
+        <button
+          className="inline-flex min-h-10 items-center rounded-full border border-border/80 bg-surface px-4 text-sm font-medium text-foreground shadow-sm md:hidden"
+          onClick={() => setCollapsed(!collapsed)}
+          type="button"
+        >
+          {collapsed ? t('room.controls.expandPanel') : t('room.controls.collapsePanel')}
+        </button>
+
+        <Card
+          className={cn(
+            'rounded-4xl border-border/80 bg-surface shadow-md transition md:block',
+            collapsed ? 'hidden' : 'block'
+          )}
+        >
+          <CardContent className="grid grid-cols-1 gap-2 p-2 sm:grid-cols-3">
+            <DockButton
+              active={microphoneEnabled}
+              label={microphoneEnabled ? t('room.controls.mute') : t('room.controls.unmute')}
+              onClick={onMicrophone}
+            />
+            <DockButton
+              active={cameraEnabled}
+              label={cameraEnabled ? t('room.controls.cameraOff') : t('room.controls.cameraOn')}
+              onClick={onCamera}
+            />
+            <DockButton
+              active={screenEnabled}
+              label={screenEnabled ? t('room.controls.stopShare') : t('room.controls.shareScreen')}
+              onClick={onScreen}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -482,6 +624,69 @@ function RoomErrorState({
       </CardContent>
     </Card>
   )
+}
+
+function buildParticipantTiles(
+  participants: readonly Participant[],
+  localParticipantId: string | null,
+  localMediaStreams: RtcMediaStreams,
+  remoteMediaStreams: Readonly<Record<string, RtcMediaStreams>>
+): ParticipantMediaTile[] {
+  const tiles: ParticipantMediaTile[] = []
+
+  for (const participant of participants) {
+    const local = participant.id === localParticipantId
+    const mediaStreams = local ? localMediaStreams : (remoteMediaStreams[participant.id] ?? {})
+    const audioOn = slotEnabled(participant, 'audio')
+    const cameraOn = slotEnabled(participant, 'camera')
+    const screenOn = slotEnabled(participant, 'screen')
+    const cameraStream = mediaStreams.camera ?? null
+    const screenStream = mediaStreams.screen ?? null
+
+    if (cameraOn || cameraStream) {
+      tiles.push({
+        id: `${participant.id}:camera`,
+        participant,
+        kind: 'camera',
+        stream: cameraStream,
+        local,
+        audioOn,
+        cameraOn,
+        screenOn,
+        awaitingMedia: cameraOn && !cameraStream
+      })
+    }
+
+    if (screenOn || screenStream) {
+      tiles.push({
+        id: `${participant.id}:screen`,
+        participant,
+        kind: 'screen',
+        stream: screenStream,
+        local,
+        audioOn,
+        cameraOn,
+        screenOn,
+        awaitingMedia: screenOn && !screenStream
+      })
+    }
+
+    if (!cameraOn && !screenOn && !cameraStream && !screenStream) {
+      tiles.push({
+        id: `${participant.id}:presence`,
+        participant,
+        kind: 'presence',
+        stream: null,
+        local,
+        audioOn,
+        cameraOn,
+        screenOn,
+        awaitingMedia: audioOn
+      })
+    }
+  }
+
+  return tiles
 }
 
 function slotEnabled(participant: Participant, kind: ParticipantSlotKind): boolean {

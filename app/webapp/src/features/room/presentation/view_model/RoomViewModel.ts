@@ -397,7 +397,9 @@ export class RoomViewModel extends ViewModel {
         participants: [],
         localParticipantId: null,
         localStream: null,
+        localMediaStreams: {},
         remoteStreams: {},
+        remoteMediaStreams: {},
         microphone: {
           ...state.microphone,
           loading: false
@@ -422,7 +424,9 @@ export class RoomViewModel extends ViewModel {
       participants: session.snapshot.participants as Participant[],
       localParticipantId: session.participantId,
       localStream: state.localStream,
+      localMediaStreams: state.localMediaStreams,
       remoteStreams: state.remoteStreams,
+      remoteMediaStreams: state.remoteMediaStreams,
       microphone: {
         ...state.microphone,
         loading: false,
@@ -465,7 +469,9 @@ export class RoomViewModel extends ViewModel {
       localParticipantId: session.participantId || state.localParticipantId,
       participants: (session.snapshot?.participants ?? state.participants) as Participant[],
       localStream: session.localStream,
-      remoteStreams: session.remoteStreams
+      localMediaStreams: session.localMediaStreams,
+      remoteStreams: session.remoteStreams,
+      remoteMediaStreams: session.remoteMediaStreams
     }
 
     // Если RTC-сессия прислала новый snapshot, UI-контролы лучше синхронизировать с ним.
@@ -481,7 +487,9 @@ export class RoomViewModel extends ViewModel {
       participants: [],
       localParticipantId: null,
       localStream: null,
+      localMediaStreams: {},
       remoteStreams: {},
+      remoteMediaStreams: {},
       error: null,
       actionStatus: 'room.status.checkingRoom',
       diagnostics: null,
@@ -653,7 +661,8 @@ function createDiagnostics(
   const roomId = nextSession?.roomId || state.roomId || 'not selected'
   const participants = nextSession?.snapshot?.participants ?? state.participants
   const localStream = nextSession?.localStream ?? state.localStream
-  const remoteStreams = nextSession?.remoteStreams ?? state.remoteStreams
+  const localMediaStreams = nextSession?.localMediaStreams ?? state.localMediaStreams
+  const remoteMediaStreams = nextSession?.remoteMediaStreams ?? state.remoteMediaStreams
   const diagnostics = rtcDiagnostics
 
   return {
@@ -661,17 +670,17 @@ function createDiagnostics(
       `Room id: ${roomId}`,
       `Participants: ${participants.length}`,
       `Local participant: ${nextSession?.participantId || state.localParticipantId || 'missing'}`,
-      `Remote streams: ${Object.keys(remoteStreams).length}`
+      `Remote streams: ${Object.keys(remoteMediaStreams).length}`
     ],
     publisher: [
       `Connection: ${diagnostics?.publisherConnectionState ?? state.status}`,
       `ICE: ${diagnostics?.publisherIceState ?? 'unknown'}`,
-      `Local tracks: ${describeStreamTracks(localStream)}`
+      `Local tracks: ${describeStreamTracks(localStream)} / camera=${Boolean(localMediaStreams.camera)} / screen=${Boolean(localMediaStreams.screen)}`
     ],
     subscriber: [
       `Connection: ${diagnostics?.subscriberConnectionState ?? 'unknown'}`,
       `ICE: ${diagnostics?.subscriberIceState ?? 'unknown'}`,
-      `Remote streams: ${Object.keys(remoteStreams).length}`
+      `Remote streams: ${Object.keys(remoteMediaStreams).length}`
     ],
     signaling: [
       `Socket: ${diagnostics?.signalingState ?? 'unknown'}`,

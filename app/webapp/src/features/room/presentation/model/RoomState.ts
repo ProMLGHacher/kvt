@@ -1,7 +1,7 @@
 import type { ConferenceDiagnostics } from '@features/room/presentation/model/RoomDiagnostics'
 import type { RoomControlState } from '@features/room/domain/model/RoomControls'
 import type { Participant } from '@features/room/domain/model/Participant'
-import type { RtcConnectionStatus } from '@capabilities/rtc/domain/model'
+import type { RtcConnectionStatus, RtcMediaStreams } from '@capabilities/rtc/domain/model'
 import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
 
 export type RoomStatusMessageKey = PrefixedTranslationKey<'voice', 'room.status'>
@@ -15,7 +15,9 @@ export type RoomUiState = {
   readonly participants: readonly Participant[]
   readonly localParticipantId: string | null
   readonly localStream: MediaStream | null
+  readonly localMediaStreams: RtcMediaStreams
   readonly remoteStreams: Readonly<Record<string, MediaStream>>
+  readonly remoteMediaStreams: Readonly<Record<string, RtcMediaStreams>>
   readonly microphone: RoomControlState
   readonly camera: RoomControlState
   readonly screenShare: RoomControlState
@@ -56,7 +58,9 @@ export const initialRoomState: RoomUiState = {
   participants: [],
   localParticipantId: null,
   localStream: null,
+  localMediaStreams: {},
   remoteStreams: {},
+  remoteMediaStreams: {},
   microphone: { kind: 'microphone', enabled: true, loading: false, error: null },
   camera: { kind: 'camera', enabled: false, loading: false, error: null },
   screenShare: { kind: 'screen', enabled: false, loading: false, error: null },

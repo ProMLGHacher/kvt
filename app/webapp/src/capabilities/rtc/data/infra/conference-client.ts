@@ -68,6 +68,7 @@ type ConferenceEvents = {
   onRemoteTrack: (participantId: string, kind: SlotKind, stream: MediaStream) => void
   onRemoteStreamsReset?: () => void
   onLocalStream?: (stream: MediaStream | null) => void
+  onLocalSlotStream?: (kind: SlotKind, stream: MediaStream | null) => void
   onStateChange: (state: string) => void
   onDiagnostics?: (diagnostics: ConferenceDiagnostics) => void
   onError?: (message: string) => void
@@ -91,7 +92,8 @@ export class ConferenceClient {
   private localCameraTrack: MediaStreamTrack | null = null
   private localScreenTrack: MediaStreamTrack | null = null
   private localPreviewStream: MediaStream | null = null
-  private remoteStreams = new Map<string, MediaStream>()
+  private localSlotPreviewStreams = new Map<SlotKind, MediaStream>()
+  private remoteStreams = new Map<string, Map<SlotKind, MediaStream>>()
   private makingPublisherOffer = false
   private allowPublisherNegotiation = false
   private pendingPublisherCandidates: RTCIceCandidateInit[] = []
@@ -263,7 +265,11 @@ export class ConferenceClient {
     this.localCameraTrack?.stop()
     this.localScreenTrack?.stop()
     this.localPreviewStream = null
+    this.localSlotPreviewStreams.clear()
     this.events.onLocalStream?.(null)
+    this.events.onLocalSlotStream?.('audio', null)
+    this.events.onLocalSlotStream?.('camera', null)
+    this.events.onLocalSlotStream?.('screen', null)
     this.emitDiagnostics()
     logInfo('rtc', 'conference client closed')
   }
@@ -329,9 +335,12 @@ export class ConferenceClient {
         const [stream] = event.streams
         const participantId = stream?.id ?? 'unknown'
         const slotKind = (event.track.id as SlotKind) || inferSlotKind(event.track.kind)
-        const remoteStream = this.remoteStreams.get(participantId) ?? new MediaStream()
-        remoteStream.addTrack(event.track)
-        this.remoteStreams.set(participantId, remoteStream)
+        const participantStreams =
+          this.remoteStreams.get(participantId) ?? new Map<SlotKind, MediaStream>()
+        const remoteStream = participantStreams.get(slotKind) ?? new MediaStream()
+        syncPreviewTrack(remoteStream, event.track.kind as 'audio' | 'video', event.track)
+        participantStreams.set(slotKind, remoteStream)
+        this.remoteStreams.set(participantId, participantStreams)
         this.events.onRemoteTrack(participantId, slotKind, remoteStream)
         this.emitDiagnostics()
         logInfo('rtc', 'remote track attached', {
@@ -888,6 +897,9 @@ export class ConferenceClient {
       logInfo('rtc', 'local preview stream cleared')
       this.localPreviewStream = null
       this.events.onLocalStream?.(null)
+      this.publishLocalSlotStream('audio', null)
+      this.publishLocalSlotStream('camera', null)
+      this.publishLocalSlotStream('screen', null)
       return
     }
 
@@ -898,6 +910,9 @@ export class ConferenceClient {
 
     syncPreviewTrack(this.localPreviewStream, 'audio', this.localAudioTrack)
     syncPreviewTrack(this.localPreviewStream, 'video', preferredVideoTrack)
+    this.publishLocalSlotStream('audio', this.localAudioTrack)
+    this.publishLocalSlotStream('camera', this.localCameraTrack)
+    this.publishLocalSlotStream('screen', this.localScreenTrack)
     logInfo('rtc', 'local preview stream published', {
       trackIds: this.localPreviewStream.getTracks().map((track) => ({
         id: track.id,
@@ -907,6 +922,19 @@ export class ConferenceClient {
       }))
     })
     this.events.onLocalStream?.(this.localPreviewStream)
+  }
+
+  private publishLocalSlotStream(kind: SlotKind, track: MediaStreamTrack | null) {
+    if (!track) {
+      this.localSlotPreviewStreams.delete(kind)
+      this.events.onLocalSlotStream?.(kind, null)
+      return
+    }
+
+    const stream = this.localSlotPreviewStreams.get(kind) ?? new MediaStream()
+    syncPreviewTrack(stream, track.kind as 'audio' | 'video', track)
+    this.localSlotPreviewStreams.set(kind, stream)
+    this.events.onLocalSlotStream?.(kind, stream)
   }
 
   private getPeerConnection(peer: LocalPeerKind) {

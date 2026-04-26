@@ -34,13 +34,17 @@ export type RtcRoomSnapshot = {
   readonly participants: readonly RtcParticipant[]
 }
 
+export type RtcMediaStreams = Partial<Record<RtcMediaSlotKind, MediaStream>>
+
 export type RtcSession = {
   readonly roomId: string
   readonly participantId: string
   readonly status: RtcConnectionStatus
   readonly snapshot: RtcRoomSnapshot | null
   readonly localStream: MediaStream | null
+  readonly localMediaStreams: RtcMediaStreams
   readonly remoteStreams: Readonly<Record<string, MediaStream>>
+  readonly remoteMediaStreams: Readonly<Record<string, RtcMediaStreams>>
 }
 
 export type RtcDiagnostics = {

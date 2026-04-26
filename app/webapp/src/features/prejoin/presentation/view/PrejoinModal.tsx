@@ -9,8 +9,6 @@ import {
   Card,
   CardContent,
   Dialog,
-  DialogFooter,
-  DialogHeader,
   Field,
   FieldHint,
   Input,
@@ -21,8 +19,8 @@ import {
   VideoAspectRatio
 } from '@core/design-system'
 import type { ParticipantRole } from '@features/room/domain/model/Participant'
-import { PrejoinViewModel } from '../view_model/PrejoinViewModel'
 import { useAttachMediaStream } from '@core/react/useAttachMediaStream'
+import { PrejoinViewModel } from '../view_model/PrejoinViewModel'
 
 export interface PrejoinModalProps {
   readonly open: boolean
@@ -67,67 +65,57 @@ export function PrejoinModal({
 
   return (
     <Dialog
-      className="max-h-[calc(100dvh-1rem)] max-w-5xl overflow-hidden rounded-4xl p-0"
+      className="max-h-[calc(100dvh-0.75rem)] max-w-6xl overflow-hidden rounded-4xl p-0 sm:max-h-[calc(100dvh-2rem)]"
       open={open}
     >
-      <div className="grid min-h-[36rem] max-h-[calc(100dvh-1rem)] overflow-hidden xl:grid-cols-[minmax(0,1.15fr)_24rem]">
-        <section className="flex min-h-0 flex-col bg-background">
-          <div className="flex items-center justify-between gap-3 border-b border-border/80 px-4 py-4 sm:px-6">
+      <div className="flex max-h-[calc(100dvh-0.75rem)] flex-col overflow-y-auto bg-surface-elevated sm:max-h-[calc(100dvh-2rem)] xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:overflow-hidden">
+        <section className="flex min-h-0 flex-col border-b border-border/80 bg-background xl:border-b-0 xl:border-r">
+          <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5">
             <div className="min-w-0">
-              <p className="text-lg font-medium text-foreground">{t('prejoin.title')}</p>
-              <p className="truncate text-sm text-muted-foreground">{t('prejoin.description')}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="default">{t('prejoin.badge')}</Badge>
+                <Badge className="truncate">{uiState.roomId}</Badge>
+              </div>
+              <h2 className="mt-3 text-xl font-medium text-foreground sm:text-2xl">
+                {t('prejoin.title')}
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                {t('prejoin.description')}
+              </p>
             </div>
-            <Badge variant="default">{uiState.roomId}</Badge>
           </div>
 
-          <div className="grid min-h-0 flex-1 items-center gap-6 px-4 py-4 sm:px-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
-            <div className="grid gap-4">
-              <div className="overflow-hidden rounded-4xl bg-slate-950 shadow-lg">
-                {uiState.cameraEnabled ? (
-                  <VideoAspectRatio
-                    ref={previewRef}
-                    aria-label={t('prejoin.cameraPreview')}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="aspect-[4/3] rounded-none object-cover"
-                  />
-                ) : (
-                  <div className="grid aspect-[4/3] place-items-center p-8 text-center text-white">
-                    <div>
-                      <div className="mx-auto grid size-24 place-items-center rounded-full bg-white/10 text-4xl font-medium">
-                        {uiState.displayName.value.trim().slice(0, 1).toUpperCase() || 'K'}
-                      </div>
-                      <p className="mt-5 text-sm text-slate-300">{t('prejoin.cameraOff')}</p>
+          <div className="grid gap-4 px-4 pb-4 sm:px-6 sm:pb-6 lg:gap-5">
+            <div className="overflow-hidden rounded-4xl border border-border/70 bg-slate-950 shadow-lg">
+              {uiState.cameraEnabled ? (
+                <VideoAspectRatio
+                  ref={previewRef}
+                  aria-label={t('prejoin.cameraPreview')}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="aspect-[16/12] w-full rounded-none object-cover sm:aspect-[16/10] xl:aspect-[16/9]"
+                />
+              ) : (
+                <div className="grid aspect-[16/12] place-items-center p-8 text-center text-white sm:aspect-[16/10] xl:aspect-[16/9]">
+                  <div>
+                    <div className="mx-auto grid size-20 place-items-center rounded-full bg-white/10 text-3xl font-medium sm:size-24 sm:text-4xl">
+                      {uiState.displayName.value.trim().slice(0, 1).toUpperCase() || 'K'}
                     </div>
+                    <p className="mt-4 text-sm text-slate-300">{t('prejoin.cameraOff')}</p>
                   </div>
-                )}
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <StatusChip
-                  enabled={uiState.micEnabled}
-                  label={t('prejoin.microphone')}
-                  value={uiState.micEnabled ? t('prejoin.micOn') : t('prejoin.micOff')}
-                />
-                <StatusChip
-                  enabled={uiState.cameraEnabled}
-                  label={t('prejoin.camera')}
-                  value={
-                    uiState.cameraEnabled ? t('prejoin.cameraOn') : t('prejoin.cameraOffShort')
-                  }
-                />
-              </div>
+                </div>
+              )}
             </div>
 
-            <div className="grid gap-3">
-              <QuickToggleCard
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <ToggleSummaryCard
                 checked={uiState.micEnabled}
                 description={uiState.micEnabled ? t('prejoin.micOn') : t('prejoin.micOff')}
                 label={t('prejoin.microphone')}
                 onChange={(enabled) => viewModel.onEvent({ type: 'microphone-toggled', enabled })}
               />
-              <QuickToggleCard
+              <ToggleSummaryCard
                 checked={uiState.cameraEnabled}
                 description={
                   uiState.cameraEnabled ? t('prejoin.cameraOn') : t('prejoin.cameraOffShort')
@@ -139,12 +127,8 @@ export function PrejoinModal({
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col border-t border-border/80 bg-surface xl:border-l xl:border-t-0">
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-            <DialogHeader className="mb-5">
-              <p className="text-xl font-medium text-foreground">{t('prejoin.badge')}</p>
-            </DialogHeader>
-
+        <section className="flex min-h-0 flex-col bg-surface">
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid gap-4">
               {uiState.error && (
                 <Alert>
@@ -217,23 +201,23 @@ export function PrejoinModal({
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border/80 bg-surface px-4 py-4 sm:px-5">
+          <div className="border-t border-border/80 bg-surface px-4 py-4 sm:px-5">
             <Button
-              className="w-full min-h-12 rounded-full"
+              className="min-h-12 w-full rounded-full"
               disabled={!uiState.joinButton.enabled || uiState.joinButton.loading}
               onClick={() => viewModel.onEvent({ type: 'join-pressed' })}
               type="button"
             >
               {uiState.joinButton.loading ? t('prejoin.joining') : t('prejoin.joinRoom')}
             </Button>
-          </DialogFooter>
+          </div>
         </section>
       </div>
     </Dialog>
   )
 }
 
-function QuickToggleCard({
+function ToggleSummaryCard({
   checked,
   label,
   description,
@@ -254,31 +238,5 @@ function QuickToggleCard({
         <Switch checked={checked} onCheckedChange={onChange} />
       </CardContent>
     </Card>
-  )
-}
-
-function StatusChip({
-  enabled,
-  label,
-  value
-}: {
-  readonly enabled: boolean
-  readonly label: string
-  readonly value: string
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-full border border-border/80 bg-surface px-4 py-3">
-      <span
-        className={
-          enabled
-            ? 'inline-flex size-2 rounded-full bg-success'
-            : 'inline-flex size-2 rounded-full bg-muted-foreground'
-        }
-      />
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="truncate text-xs text-muted-foreground">{value}</p>
-      </div>
-    </div>
   )
 }

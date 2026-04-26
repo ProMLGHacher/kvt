@@ -86,8 +86,13 @@ export default {
     participant: {
       you: 'Вы',
       screen: 'Экран',
+      screenFrom: 'Экран {{name}}',
       mic: 'Микрофон',
       cam: 'Камера',
+      pin: 'Закрепить',
+      unpin: 'Открепить',
+      pinned: 'Закреплено',
+      fullscreen: 'Во весь экран',
       waitingMedia: 'Участник подключён, ожидаем медиа.',
       roles: {
         host: 'Организатор',
@@ -100,7 +105,9 @@ export default {
       cameraOff: 'Выключить камеру',
       cameraOn: 'Включить камеру',
       stopShare: 'Остановить показ',
-      shareScreen: 'Показать экран'
+      shareScreen: 'Показать экран',
+      collapsePanel: 'Свернуть панель',
+      expandPanel: 'Развернуть панель'
     },
     tech: {
       title: 'Техническая информация',

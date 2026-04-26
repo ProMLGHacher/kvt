@@ -87,8 +87,13 @@ export default defineResource<typeof ruVoice>()({
     participant: {
       you: 'You',
       screen: 'Screen',
+      screenFrom: "{{name}}'s screen",
       mic: 'Mic',
       cam: 'Cam',
+      pin: 'Pin',
+      unpin: 'Unpin',
+      pinned: 'Pinned',
+      fullscreen: 'Fullscreen',
       waitingMedia: 'Participant is connected, waiting for media.',
       roles: {
         host: 'Host',
@@ -101,7 +106,9 @@ export default defineResource<typeof ruVoice>()({
       cameraOff: 'Camera off',
       cameraOn: 'Camera on',
       stopShare: 'Stop share',
-      shareScreen: 'Share screen'
+      shareScreen: 'Share screen',
+      collapsePanel: 'Collapse panel',
+      expandPanel: 'Expand panel'
     },
     tech: {
       title: 'Technical info',

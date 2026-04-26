@@ -3,6 +3,8 @@ import type {
   ConnectRtcParams,
   RtcDiagnostics,
   RtcError,
+  RtcMediaSlotKind,
+  RtcMediaStreams,
   RtcSession
 } from '@capabilities/rtc/domain/model'
 import type { RtcRepository } from '@capabilities/rtc/domain/repository/RtcRepository'
@@ -15,7 +17,9 @@ const initialSession: RtcSession = {
   status: 'idle',
   snapshot: null,
   localStream: null,
-  remoteStreams: {}
+  localMediaStreams: {},
+  remoteStreams: {},
+  remoteMediaStreams: {}
 }
 
 export class BrowserRtcRepository implements RtcRepository {
@@ -34,16 +38,19 @@ export class BrowserRtcRepository implements RtcRepository {
       status: 'connecting',
       snapshot: null,
       localStream: null,
-      remoteStreams: {}
+      localMediaStreams: {},
+      remoteStreams: {},
+      remoteMediaStreams: {}
     })
 
     this.client = new ConferenceClient({
       onSnapshot: (snapshot) => this.applySnapshot(params.participantId, snapshot),
       onSlotUpdated: (slot) => this.applySlotUpdate(slot),
-      onRemoteTrack: (participantId, _kind, stream) =>
-        this.applyRemoteStream(participantId, stream),
+      onRemoteTrack: (participantId, kind, stream) =>
+        this.applyRemoteStream(participantId, kind, stream),
       onRemoteStreamsReset: () => this.clearRemoteStreams(),
       onLocalStream: (stream) => this.applyLocalStream(stream),
+      onLocalSlotStream: (kind, stream) => this.applyLocalSlotStream(kind, stream),
       onStateChange: (state) => this.updateStatus(state),
       onDiagnostics: (diagnostics) => this.updateDiagnostics(diagnostics),
       onError: (message) => {
@@ -78,7 +85,9 @@ export class BrowserRtcRepository implements RtcRepository {
       ...session,
       status: 'closed',
       localStream: null,
-      remoteStreams: {}
+      localMediaStreams: {},
+      remoteStreams: {},
+      remoteMediaStreams: {}
     }))
   }
 
@@ -123,7 +132,9 @@ export class BrowserRtcRepository implements RtcRepository {
       participantId,
       status: 'connected',
       localStream: this.sessionState.value.localStream,
+      localMediaStreams: this.sessionState.value.localMediaStreams,
       remoteStreams: this.filterRemoteStreams(snapshot),
+      remoteMediaStreams: this.filterRemoteMediaStreams(snapshot),
       snapshot: {
         roomId: snapshot.roomId,
         hostParticipantId: snapshot.hostParticipantId,
@@ -181,24 +192,56 @@ export class BrowserRtcRepository implements RtcRepository {
     this.sessionState.update((session) => ({ ...session, localStream: stream }))
   }
 
-  private applyRemoteStream(participantId: string, stream: MediaStream) {
+  private applyLocalSlotStream(kind: RtcMediaSlotKind, stream: MediaStream | null) {
+    this.sessionState.update((session) => ({
+      ...session,
+      localMediaStreams: {
+        ...session.localMediaStreams,
+        [kind]: stream ?? undefined
+      }
+    }))
+  }
+
+  private applyRemoteStream(participantId: string, kind: RtcMediaSlotKind, stream: MediaStream) {
     this.sessionState.update((session) => ({
       ...session,
       remoteStreams: {
         ...session.remoteStreams,
-        [participantId]: stream
+        [participantId]: session.remoteStreams[participantId] ?? stream
+      },
+      remoteMediaStreams: {
+        ...session.remoteMediaStreams,
+        [participantId]: {
+          ...(session.remoteMediaStreams[participantId] ?? {}),
+          [kind]: stream
+        }
       }
     }))
   }
 
   private clearRemoteStreams() {
-    this.sessionState.update((session) => ({ ...session, remoteStreams: {} }))
+    this.sessionState.update((session) => ({
+      ...session,
+      remoteStreams: {},
+      remoteMediaStreams: {}
+    }))
   }
 
   private filterRemoteStreams(snapshot: RoomSnapshot): Readonly<Record<string, MediaStream>> {
     const activeParticipantIds = new Set(snapshot.participants.map((participant) => participant.id))
     return Object.fromEntries(
       Object.entries(this.sessionState.value.remoteStreams).filter(([participantId]) =>
+        activeParticipantIds.has(participantId)
+      )
+    )
+  }
+
+  private filterRemoteMediaStreams(
+    snapshot: RoomSnapshot
+  ): Readonly<Record<string, RtcMediaStreams>> {
+    const activeParticipantIds = new Set(snapshot.participants.map((participant) => participant.id))
+    return Object.fromEntries(
+      Object.entries(this.sessionState.value.remoteMediaStreams).filter(([participantId]) =>
         activeParticipantIds.has(participantId)
       )
     )
