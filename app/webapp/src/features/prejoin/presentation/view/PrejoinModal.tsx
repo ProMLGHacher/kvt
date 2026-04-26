@@ -67,10 +67,10 @@ export function PrejoinModal({
 
   return (
     <Dialog
-      className="max-h-[calc(100dvh-1rem)] max-w-6xl overflow-hidden rounded-4xl p-0"
+      className="max-h-[calc(100dvh-1rem)] max-w-5xl overflow-hidden rounded-4xl p-0"
       open={open}
     >
-      <div className="grid min-h-[36rem] max-h-[calc(100dvh-1rem)] overflow-hidden lg:grid-cols-[minmax(0,1.15fr)_24rem]">
+      <div className="grid min-h-[36rem] max-h-[calc(100dvh-1rem)] overflow-hidden xl:grid-cols-[minmax(0,1.15fr)_24rem]">
         <section className="flex min-h-0 flex-col bg-background">
           <div className="flex items-center justify-between gap-3 border-b border-border/80 px-4 py-4 sm:px-6">
             <div className="min-w-0">
@@ -80,7 +80,7 @@ export function PrejoinModal({
             <Badge variant="default">{uiState.roomId}</Badge>
           </div>
 
-          <div className="grid min-h-0 flex-1 items-center gap-6 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="grid min-h-0 flex-1 items-center gap-6 px-4 py-4 sm:px-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
             <div className="grid gap-4">
               <div className="overflow-hidden rounded-4xl bg-slate-950 shadow-lg">
                 {uiState.cameraEnabled ? (
@@ -139,7 +139,7 @@ export function PrejoinModal({
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col border-l border-border/80 bg-surface">
+        <section className="flex min-h-0 flex-col border-t border-border/80 bg-surface xl:border-l xl:border-t-0">
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
             <DialogHeader className="mb-5">
               <p className="text-xl font-medium text-foreground">{t('prejoin.badge')}</p>
