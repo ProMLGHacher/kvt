@@ -49,7 +49,7 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
           >
             <div>
               <div className="mx-auto grid size-24 place-items-center rounded-[2rem] bg-background text-foreground transition group-hover:scale-105">
-                <CreateMeetingIcon />
+                <LogoMark />
               </div>
               <p className="mt-6 text-xl font-semibold text-foreground">{t('home.createRoom')}</p>
             </div>
@@ -116,17 +116,17 @@ export function HomePage({ _vm = HomeViewModel }: PropsWithVM<HomeViewModel>): R
   )
 }
 
-function CreateMeetingIcon() {
+function LogoMark() {
   return (
     <svg aria-hidden="true" className="size-14" fill="none" viewBox="0 0 64 64">
       <path
-        d="M16 20h25a9 9 0 0 1 9 9v3a9 9 0 0 1-9 9h-8l-9 8v-8h-8a9 9 0 0 1-9-9v-3a9 9 0 0 1 9-9Z"
+        d="M17 24h24a8 8 0 0 1 8 8v1a8 8 0 0 1-8 8h-8l-8 7v-7h-8a8 8 0 0 1-8-8v-1a8 8 0 0 1 8-8Z"
         stroke="currentColor"
         strokeLinejoin="round"
         strokeWidth="3"
       />
-      <path d="M43 31h.1" stroke="#58E66B" strokeLinecap="round" strokeWidth="7" />
-      <circle cx="24" cy="31" r="8" stroke="currentColor" strokeWidth="3" />
+      <path d="M24 32h14" stroke="currentColor" strokeLinecap="round" strokeWidth="3" />
+      <path d="M45 32h.1" stroke="#58E66B" strokeLinecap="round" strokeWidth="7" />
     </svg>
   )
 }

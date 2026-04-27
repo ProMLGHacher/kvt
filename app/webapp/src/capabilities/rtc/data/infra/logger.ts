@@ -1,19 +1,20 @@
 export function logInfo(scope: string, message: string, data?: unknown) {
   appendClientLog('info', scope, message, data)
-  console.info(`[kvt][${scope}] ${message}`, data ?? '')
+  console.info(`[kvatum][${scope}] ${message}`, data ?? '')
 }
 
 export function logWarn(scope: string, message: string, data?: unknown) {
   appendClientLog('warn', scope, message, data)
-  console.warn(`[kvt][${scope}] ${message}`, data ?? '')
+  console.warn(`[kvatum][${scope}] ${message}`, data ?? '')
 }
 
 export function logError(scope: string, message: string, data?: unknown) {
   appendClientLog('error', scope, message, data)
-  console.error(`[kvt][${scope}] ${message}`, data ?? '')
+  console.error(`[kvatum][${scope}] ${message}`, data ?? '')
 }
 
-const storageKey = 'kvt.rooms.client-logs'
+const storageKey = 'kvatum.client-logs'
+const legacyStorageKey = 'kvt.rooms.client-logs'
 const maxEntries = 1000
 
 function appendClientLog(
@@ -46,7 +47,7 @@ function appendClientLog(
 }
 
 function readEntries(): unknown[] {
-  const stored = localStorage.getItem(storageKey)
+  const stored = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey)
   if (!stored) {
     return []
   }

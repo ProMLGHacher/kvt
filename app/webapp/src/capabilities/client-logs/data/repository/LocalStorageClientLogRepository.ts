@@ -3,7 +3,8 @@ import type { ClientLogEntry } from '@capabilities/client-logs/domain/model/Clie
 import type { ClientLogRepository } from '@capabilities/client-logs/domain/repository/ClientLogRepository'
 import { RingBuffer } from '@core/utils/RingBuffer'
 
-const storageKey = 'kvt.rooms.client-logs'
+const storageKey = 'kvatum.client-logs'
+const legacyStorageKey = 'kvt.rooms.client-logs'
 const maxEntries = 1000
 
 export class LocalStorageClientLogRepository implements ClientLogRepository {
@@ -41,6 +42,7 @@ export class LocalStorageClientLogRepository implements ClientLogRepository {
     this.buffer.clear()
     this.state.set([])
     localStorage.removeItem(storageKey)
+    localStorage.removeItem(legacyStorageKey)
   }
 
   private scheduleEmit(): void {
@@ -79,7 +81,7 @@ export class LocalStorageClientLogRepository implements ClientLogRepository {
   }
 
   private readMutable(): ClientLogEntry[] {
-    const stored = localStorage.getItem(storageKey)
+    const stored = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey)
 
     if (!stored) {
       return []

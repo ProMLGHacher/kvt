@@ -1,5 +1,5 @@
 export default {
-  eyebrow: 'KVT clean demo',
+  eyebrow: 'Кватум',
   title: 'Командный чат',
   panes: {
     chats: 'Чаты',

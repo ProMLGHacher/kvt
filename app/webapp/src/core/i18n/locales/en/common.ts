@@ -3,7 +3,7 @@ import { defineResource } from '../../translation-key'
 
 export default defineResource<typeof ruCommon>()({
   nav: {
-    brand: 'KVT rooms',
+    brand: 'Kvatum',
     tagline: 'Voice-first rooms with fast joins',
     main: 'Home',
     theme: 'Theme',

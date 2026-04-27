@@ -2,7 +2,7 @@ import type ruChat from '../ru/chat'
 import { defineResource } from '../../translation-key'
 
 export default defineResource<typeof ruChat>()({
-  eyebrow: 'KVT clean demo',
+  eyebrow: 'Kvatum',
   title: 'Team chat',
   panes: {
     chats: 'Chats',

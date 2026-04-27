@@ -1,7 +1,8 @@
 import type { UserSettings } from '@capabilities/user-preferences/domain/model/UserSettings'
 import type { UserSettingsRepository } from '@capabilities/user-preferences/domain/repository/UserSettingsRepository'
 
-const storageKey = 'kvt.rooms.user-preferences'
+const storageKey = 'kvatum.user-preferences'
+const legacyStorageKey = 'kvt.rooms.user-preferences'
 
 const defaultSettings: UserSettings = {
   displayName: null,
@@ -42,7 +43,7 @@ export class LocalStorageUserSettingsRepository implements UserSettingsRepositor
   }
 
   private read(): UserSettings {
-    const stored = localStorage.getItem(storageKey)
+    const stored = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey)
     if (!stored) {
       return defaultSettings
     }

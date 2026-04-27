@@ -3,8 +3,8 @@ import { defineResource } from '../../translation-key'
 
 export default defineResource<typeof ruVoice>()({
   home: {
-    badge: 'KVT rooms',
-    title: 'KVT rooms — chats and video calls',
+    badge: 'Kvatum',
+    title: 'Kvatum — chats and video calls',
     description:
       'Create a room, send the link, and join with a clear prejoin flow, soft event feedback, and attention on people.',
     createRoom: 'Create video meeting',

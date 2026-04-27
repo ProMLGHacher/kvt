@@ -1,0 +1,24 @@
+{
+  "name": "Кватум",
+  "short_name": "Кватум",
+  "description": "Быстрые видеовстречи и голосовые комнаты со ссылкой-приглашением.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f8",
+  "theme_color": "#f6f7f8",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "256x256",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
