@@ -120,13 +120,20 @@ function LogoMark() {
   return (
     <svg aria-hidden="true" className="size-14" fill="none" viewBox="0 0 64 64">
       <path
-        d="M17 24h24a8 8 0 0 1 8 8v1a8 8 0 0 1-8 8h-8l-8 7v-7h-8a8 8 0 0 1-8-8v-1a8 8 0 0 1 8-8Z"
+        d="M32 12a20 20 0 1 1 0 40 20 20 0 0 1-9.2-2.2L15 53l2.3-8A19.8 19.8 0 0 1 12 32a20 20 0 0 1 20-20Z"
         stroke="currentColor"
+        strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="3"
       />
-      <path d="M24 32h14" stroke="currentColor" strokeLinecap="round" strokeWidth="3" />
-      <path d="M45 32h.1" stroke="#58E66B" strokeLinecap="round" strokeWidth="7" />
+      <path d="M18.7 46.2 15 53l7.2-2.8c-1.4-.2-2.6-.9-3.5-2.1Z" fill="currentColor" />
+      <circle cx="39.6" cy="24.7" r="3.6" fill="var(--color-primary)" />
+      <path
+        d="M39.4 37.9c1.1 1.2 2.2 1.9 3.4 1.9.9 0 1.9-.3 2.7-.8"
+        stroke="var(--color-primary)"
+        strokeLinecap="round"
+        strokeWidth="2"
+      />
     </svg>
   )
 }
