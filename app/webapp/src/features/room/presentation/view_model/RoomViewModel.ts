@@ -1,11 +1,9 @@
 import { CompositeDisposable, MutableSharedFlow, MutableStateFlow, ViewModel } from '@kvt/core'
 import type { Participant } from '@features/room/domain/model/Participant'
-import type { ConferenceSound } from '@capabilities/conference-audio/domain/model/ConferenceSound'
 import type { PlayConferenceSoundUseCase } from '@capabilities/conference-audio/domain/usecases/PlayConferenceSoundUseCase'
 import type { ObserveVoiceActivityUseCase } from '@capabilities/voice-activity/domain/usecases/ObserveVoiceActivityUseCase'
 import type { StopVoiceActivityUseCase } from '@capabilities/voice-activity/domain/usecases/StopVoiceActivityUseCase'
 import type { UpdateVoiceActivitySourcesUseCase } from '@capabilities/voice-activity/domain/usecases/UpdateVoiceActivitySourcesUseCase'
-import type { VoiceActivitySource } from '@capabilities/voice-activity/domain/model/VoiceActivitySource'
 import type { RtcDiagnostics, RtcSession } from '@capabilities/rtc/domain/model'
 import type { ConnectToRoomRtcUseCase } from '@capabilities/rtc/domain/usecases/ConnectToRoomRtcUseCase'
 import type { LoadJoinSessionUseCase } from '@capabilities/session/domain/usecases/LoadJoinSessionUseCase'
@@ -27,6 +25,11 @@ import {
   type RoomUiEffect,
   type RoomUiState
 } from '../model/RoomState'
+import { createDiagnostics } from './room-diagnostics-builder'
+import { RoomRequestGuards } from './room-request-guards'
+import { diffRemoteConferenceSounds } from './room-sound-diff'
+import { hasEnabledSlot, participantHasEnabledSlot, updateLocalSlot } from './room-slot-helpers'
+import { buildVoiceActivitySources } from './room-voice-activity-sources'
 
 type RoomControlKey = 'microphone' | 'camera' | 'screenShare'
 type RoomControl = RoomUiState[RoomControlKey]
@@ -55,13 +58,8 @@ export class RoomViewModel extends ViewModel {
   private latestDiagnostics: RtcDiagnostics | null = null
   private lastConferenceSoundParticipants: readonly Participant[] | null = null
 
-  // Нужны, чтобы старые async-ответы не перезаписывали новое состояние.
-  private openRoomRequestId = 0
-  private enterRoomRequestId = 0
-  private connectRoomRequestId = 0
-  private microphoneRequestId = 0
-  private cameraRequestId = 0
-  private screenShareRequestId = 0
+  // Guard-ы не дают старым async-ответам перезаписать состояние уже другой комнаты.
+  private readonly requestGuards = new RoomRequestGuards()
 
   readonly uiState = this.state.asStateFlow()
   readonly uiEffect = this.effects.asSharedFlow()
@@ -193,12 +191,10 @@ export class RoomViewModel extends ViewModel {
       return
     }
 
-    const requestId = ++this.openRoomRequestId
+    const requestId = this.requestGuards.next('openRoom')
 
     // Смена комнаты делает неактуальными старые подключения и pending-toggle операции.
-    this.enterRoomRequestId++
-    this.connectRoomRequestId++
-    this.invalidateControlRequests()
+    this.requestGuards.invalidate('enterRoom', 'connectRoom', 'microphone', 'camera', 'screenShare')
     this.latestDiagnostics = null
     this.lastConferenceSoundParticipants = null
     this.stopVoiceActivityUseCase.execute()
@@ -248,7 +244,7 @@ export class RoomViewModel extends ViewModel {
   }
 
   private async enterRoom() {
-    const requestId = ++this.enterRoomRequestId
+    const requestId = this.requestGuards.next('enterRoom')
     const roomId = this.state.value.roomId
 
     const storedSession = await this.loadJoinSessionUseCase.execute(roomId)
@@ -396,7 +392,7 @@ export class RoomViewModel extends ViewModel {
   }
 
   private async connectStoredSession(session: StoredJoinSession, openRoomRequestId?: number) {
-    const requestId = ++this.connectRoomRequestId
+    const requestId = this.requestGuards.next('connectRoom')
 
     this.updateState((state) => ({
       ...state,
@@ -488,10 +484,14 @@ export class RoomViewModel extends ViewModel {
   private async leaveRoom() {
     const roomId = this.state.value.roomId
 
-    this.openRoomRequestId++
-    this.enterRoomRequestId++
-    this.connectRoomRequestId++
-    this.invalidateControlRequests()
+    this.requestGuards.invalidate(
+      'openRoom',
+      'enterRoom',
+      'connectRoom',
+      'microphone',
+      'camera',
+      'screenShare'
+    )
     this.latestDiagnostics = null
     this.lastConferenceSoundParticipants = null
 
@@ -557,67 +557,13 @@ export class RoomViewModel extends ViewModel {
       return
     }
 
-    const previousById = participantsById(previousParticipants)
-    const nextById = participantsById(nextState.participants)
-    const localParticipantId = nextState.localParticipantId
-
-    for (const participant of nextState.participants) {
-      if (participant.id === localParticipantId) {
-        continue
-      }
-
-      const previousParticipant = previousById.get(participant.id)
-
-      if (!previousParticipant) {
-        this.playConferenceSoundUseCase.execute('participant-incoming')
-        continue
-      }
-
-      this.playRemoteSlotSounds(previousParticipant, participant)
+    for (const sound of diffRemoteConferenceSounds(
+      previousParticipants,
+      nextState.participants,
+      nextState.localParticipantId
+    )) {
+      this.playConferenceSoundUseCase.execute(sound)
     }
-
-    for (const participant of previousParticipants) {
-      if (participant.id !== localParticipantId && !nextById.has(participant.id)) {
-        this.playConferenceSoundUseCase.execute('participant-outgoing')
-      }
-    }
-  }
-
-  private playRemoteSlotSounds(previousParticipant: Participant, nextParticipant: Participant) {
-    this.playRemoteToggleSound(
-      participantHasEnabledSlot(previousParticipant, 'audio'),
-      participantHasEnabledSlot(nextParticipant, 'audio'),
-      'microphone-on',
-      'microphone-off'
-    )
-    this.playRemoteToggleSound(
-      participantHasEnabledSlot(previousParticipant, 'camera'),
-      participantHasEnabledSlot(nextParticipant, 'camera'),
-      'camera-on',
-      'camera-off'
-    )
-
-    const wasScreenSharing = participantHasEnabledSlot(previousParticipant, 'screen')
-    const isScreenSharing = participantHasEnabledSlot(nextParticipant, 'screen')
-
-    if (!wasScreenSharing && isScreenSharing) {
-      this.playConferenceSoundUseCase.execute('screen-share-incoming')
-    } else if (wasScreenSharing && !isScreenSharing) {
-      this.playConferenceSoundUseCase.execute('screen-share-stopped-incoming')
-    }
-  }
-
-  private playRemoteToggleSound(
-    wasEnabled: boolean,
-    isEnabled: boolean,
-    enabledSound: ConferenceSound,
-    disabledSound: ConferenceSound
-  ) {
-    if (wasEnabled === isEnabled) {
-      return
-    }
-
-    this.playConferenceSoundUseCase.execute(isEnabled ? enabledSound : disabledSound)
   }
 
   private updateVoiceActivitySources(state: RoomUiState) {
@@ -626,22 +572,7 @@ export class RoomViewModel extends ViewModel {
       return
     }
 
-    const sources: VoiceActivitySource[] = []
-
-    for (const participant of state.participants) {
-      const mediaStreams =
-        participant.id === state.localParticipantId
-          ? state.localMediaStreams
-          : (state.remoteMediaStreams[participant.id] ?? {})
-
-      sources.push({
-        id: participant.id,
-        stream: mediaStreams.audio ?? null,
-        enabled: participantHasEnabledSlot(participant, 'audio')
-      })
-    }
-
-    this.updateVoiceActivitySourcesUseCase.execute(sources)
+    this.updateVoiceActivitySourcesUseCase.execute(buildVoiceActivitySources(state))
   }
 
   private createOpeningRoomState(state: RoomUiState, roomId: string): RoomUiState {
@@ -758,41 +689,35 @@ export class RoomViewModel extends ViewModel {
   private nextControlRequestId(control: RoomControlKey): number {
     switch (control) {
       case 'microphone':
-        return ++this.microphoneRequestId
+        return this.requestGuards.next('microphone')
       case 'camera':
-        return ++this.cameraRequestId
+        return this.requestGuards.next('camera')
       case 'screenShare':
-        return ++this.screenShareRequestId
+        return this.requestGuards.next('screenShare')
     }
   }
 
   private isActualControlRequest(control: RoomControlKey, requestId: number): boolean {
     switch (control) {
       case 'microphone':
-        return requestId === this.microphoneRequestId
+        return this.requestGuards.isActual('microphone', requestId)
       case 'camera':
-        return requestId === this.cameraRequestId
+        return this.requestGuards.isActual('camera', requestId)
       case 'screenShare':
-        return requestId === this.screenShareRequestId
+        return this.requestGuards.isActual('screenShare', requestId)
     }
   }
 
-  private invalidateControlRequests() {
-    this.microphoneRequestId++
-    this.cameraRequestId++
-    this.screenShareRequestId++
-  }
-
   private isActualOpenRoomRequest(requestId: number): boolean {
-    return requestId === this.openRoomRequestId
+    return this.requestGuards.isActual('openRoom', requestId)
   }
 
   private isActualEnterRoomRequest(requestId: number): boolean {
-    return requestId === this.enterRoomRequestId
+    return this.requestGuards.isActual('enterRoom', requestId)
   }
 
   private isActualConnectRoomRequest(requestId: number): boolean {
-    return requestId === this.connectRoomRequestId
+    return this.requestGuards.isActual('connectRoom', requestId)
   }
 }
 
@@ -817,98 +742,4 @@ const roomOpenErrors = {
 
 function roomOpenError(errorType: string): RoomOpenErrorConfig {
   return errorType === 'room-not-found' ? roomOpenErrors['room-not-found'] : roomOpenErrors.default
-}
-
-function createDiagnostics(
-  state: RoomUiState,
-  session: RtcSession | null,
-  rtcDiagnostics: RtcDiagnostics | null
-): RoomUiState['diagnostics'] {
-  const nextSession = session ?? null
-  const roomId = nextSession?.roomId || state.roomId || 'not selected'
-  const participants = nextSession?.snapshot?.participants ?? state.participants
-  const localMediaStreams = nextSession?.localMediaStreams ?? state.localMediaStreams
-  const remoteMediaStreams = nextSession?.remoteMediaStreams ?? state.remoteMediaStreams
-  const diagnostics = rtcDiagnostics
-
-  return {
-    room: [
-      `Room id: ${roomId}`,
-      `Participants: ${participants.length}`,
-      `Local participant: ${nextSession?.participantId || state.localParticipantId || 'missing'}`,
-      `Remote streams: ${Object.keys(remoteMediaStreams).length}`
-    ],
-    publisher: [
-      `Connection: ${diagnostics?.publisherConnectionState ?? state.status}`,
-      `ICE: ${diagnostics?.publisherIceState ?? 'unknown'}`,
-      `Local slots: mic=${Boolean(localMediaStreams.audio)} / camera=${Boolean(localMediaStreams.camera)} / screen=${Boolean(localMediaStreams.screen)} / screenAudio=${Boolean(localMediaStreams.screenAudio)}`
-    ],
-    subscriber: [
-      `Connection: ${diagnostics?.subscriberConnectionState ?? 'unknown'}`,
-      `ICE: ${diagnostics?.subscriberIceState ?? 'unknown'}`,
-      `Remote streams: ${Object.keys(remoteMediaStreams).length}`
-    ],
-    signaling: [
-      `Socket: ${diagnostics?.signalingState ?? 'unknown'}`,
-      `Sent: ${formatSignals(diagnostics?.recentSignalsSent)}`,
-      `Received: ${formatSignals(diagnostics?.recentSignalsReceived)}`,
-      `Last error: ${diagnostics?.lastError ?? 'none'}`
-    ]
-  }
-}
-
-function formatSignals(signals: readonly string[] | undefined): string {
-  if (!signals?.length) {
-    return 'none'
-  }
-
-  return signals.slice(-6).join(', ')
-}
-
-function updateLocalSlot(
-  state: RoomUiState,
-  kind: ParticipantSlotKind,
-  enabled: boolean,
-  publishing: boolean
-): readonly Participant[] {
-  return state.participants.map((participant) => {
-    if (participant.id !== state.localParticipantId) {
-      return participant
-    }
-
-    return {
-      ...participant,
-      slots: participant.slots.map((slot) =>
-        slot.kind === kind
-          ? {
-              ...slot,
-              enabled,
-              publishing,
-              trackBound: publishing,
-              revision: slot.revision + 1
-            }
-          : slot
-      )
-    }
-  })
-}
-
-function hasEnabledSlot(
-  participants: readonly Participant[],
-  participantId: string,
-  kind: ParticipantSlotKind
-): boolean {
-  return (
-    participants
-      .find((participant) => participant.id === participantId)
-      ?.slots.some((slot) => slot.kind === kind && slot.enabled) ?? false
-  )
-}
-
-function participantHasEnabledSlot(participant: Participant, kind: ParticipantSlotKind): boolean {
-  return participant.slots.some((slot) => slot.kind === kind && slot.enabled)
-}
-
-function participantsById(participants: readonly Participant[]): Map<string, Participant> {
-  return new Map(participants.map((participant) => [participant.id, participant]))
 }

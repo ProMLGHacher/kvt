@@ -104,6 +104,60 @@ export function Spinner({ className, ...props }: HTMLAttributes<HTMLSpanElement>
   )
 }
 
+export interface KvatumLoaderProps extends HTMLAttributes<HTMLDivElement> {
+  readonly label?: string
+}
+
+export function KvatumLoader({ className, label = 'Loading', ...props }: KvatumLoaderProps) {
+  return (
+    <div
+      role="status"
+      aria-label={label}
+      className={cn('grid place-items-center text-foreground', className)}
+      {...props}
+    >
+      <div className="kvatum-loader-scene relative grid size-36 place-items-center sm:size-40">
+        <div className="kvatum-loader-halo absolute inset-2 rounded-full bg-primary/10 blur-2xl" />
+        <svg
+          aria-hidden="true"
+          className="kvatum-loader-logo relative z-10 size-28 overflow-visible sm:size-32"
+          fill="none"
+          viewBox="0 0 128 128"
+        >
+          <path
+            className="kvatum-loader-cloud"
+            d="M64 24a40 40 0 1 1 0 80 40 40 0 0 1-18.4-4.5L29.3 105l4.6-15.6A39.8 39.8 0 0 1 24 64a40 40 0 0 1 40-40Z"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="6"
+          />
+          <path
+            className="kvatum-loader-tail"
+            d="M36.6 91.4 29.3 105l14.2-5.5c-2.7-.5-5.1-1.7-6.9-4.1Z"
+            fill="currentColor"
+          />
+          <g className="kvatum-loader-eye" transform="translate(78.5 49.5)">
+            <circle r="6.2" fill="var(--color-primary)" />
+            <circle className="kvatum-loader-glint" cx="2" cy="-2" r="1.7" fill="white" />
+          </g>
+          <path
+            className="kvatum-loader-smile"
+            d="M78.5 75c2.3 2.5 4.7 3.8 7.3 3.8 1.2 0 2.3-.3 3.4-.8"
+            stroke="var(--color-primary)"
+            strokeLinecap="round"
+            strokeWidth="4"
+          />
+          <circle className="kvatum-loader-dot kvatum-loader-dot-1" cx="24" cy="30" r="3" />
+          <circle className="kvatum-loader-dot kvatum-loader-dot-2" cx="102" cy="38" r="2.5" />
+          <circle className="kvatum-loader-dot kvatum-loader-dot-3" cx="100" cy="96" r="2.8" />
+        </svg>
+        <span className="sr-only">{label}</span>
+      </div>
+    </div>
+  )
+}
+
 export const VideoAspectRatio = forwardRef<HTMLVideoElement, VideoHTMLAttributes<HTMLVideoElement>>(
   ({ className, ...props }, ref) => (
     <video

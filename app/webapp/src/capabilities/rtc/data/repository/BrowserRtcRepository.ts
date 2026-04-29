@@ -147,6 +147,7 @@ export class BrowserRtcRepository implements RtcRepository {
     }
 
     this.sessionState.update((session) => {
+      // trackBound:false означает, что слот реально отвязан в RTC; удаляем stream, чтобы UI не показывал стопкадр.
       const nextRemoteMediaStreams =
         slot.trackBound || slot.participantId === session.participantId
           ? session.remoteMediaStreams

@@ -12,13 +12,12 @@ import {
   Input,
   Label,
   NativeSelect,
-  Switch,
-  useToast,
-  VideoAspectRatio
+  useToast
 } from '@core/design-system'
 import type { ParticipantRole } from '@features/room/domain/model/Participant'
-import { useAttachMediaStream } from '@core/react/useAttachMediaStream'
 import { PrejoinViewModel } from '../view_model/PrejoinViewModel'
+import { PrejoinControls } from './PrejoinControls'
+import { PrejoinPreview } from './PrejoinPreview'
 
 export interface PrejoinModalProps {
   readonly open: boolean
@@ -59,8 +58,6 @@ export function PrejoinModal({
     }
   })
 
-  useAttachMediaStream(previewRef, uiState.preview?.stream ?? null)
-
   return (
     <Dialog
       className="!my-0 w-full !max-w-[74rem] overflow-hidden rounded-3xl bg-surface-elevated !p-0 max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] xl:max-h-[min(44rem,calc(100dvh-2rem))]"
@@ -84,41 +81,22 @@ export function PrejoinModal({
           </div>
 
           <div className="grid min-h-0 gap-4 px-5 py-5 sm:px-6 sm:py-6 xl:gap-5">
-            <div className="relative h-52 overflow-hidden rounded-3xl border border-border/70 bg-slate-950 shadow-lg sm:h-64 xl:h-[22rem]">
-              {uiState.cameraEnabled ? (
-                <VideoAspectRatio
-                  ref={previewRef}
-                  aria-label={t('prejoin.cameraPreview')}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="h-full w-full rounded-none object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center p-8 text-center text-white">
-                  <div className="grid size-20 place-items-center rounded-full bg-white/10 text-3xl font-medium leading-none sm:size-24 sm:text-4xl">
-                    {uiState.displayName.value.trim().slice(0, 1).toUpperCase() || 'K'}
-                  </div>
-                </div>
-              )}
-            </div>
+            <PrejoinPreview
+              cameraEnabled={uiState.cameraEnabled}
+              displayName={uiState.displayName.value}
+              previewRef={previewRef}
+              stream={uiState.preview?.stream ?? null}
+            />
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ToggleSummaryCard
-                checked={uiState.micEnabled}
-                description={uiState.micEnabled ? t('prejoin.micOn') : t('prejoin.micOff')}
-                label={t('prejoin.microphone')}
-                onChange={(enabled) => viewModel.onEvent({ type: 'microphone-toggled', enabled })}
-              />
-              <ToggleSummaryCard
-                checked={uiState.cameraEnabled}
-                description={
-                  uiState.cameraEnabled ? t('prejoin.cameraOn') : t('prejoin.cameraOffShort')
-                }
-                label={t('prejoin.camera')}
-                onChange={(enabled) => viewModel.onEvent({ type: 'camera-toggled', enabled })}
-              />
-            </div>
+            <PrejoinControls
+              cameraEnabled={uiState.cameraEnabled}
+              micEnabled={uiState.micEnabled}
+              t={t}
+              onCameraChange={(enabled) => viewModel.onEvent({ type: 'camera-toggled', enabled })}
+              onMicrophoneChange={(enabled) =>
+                viewModel.onEvent({ type: 'microphone-toggled', enabled })
+              }
+            />
           </div>
         </section>
 
@@ -209,27 +187,5 @@ export function PrejoinModal({
         </section>
       </div>
     </Dialog>
-  )
-}
-
-function ToggleSummaryCard({
-  checked,
-  label,
-  description,
-  onChange
-}: {
-  readonly checked: boolean
-  readonly label: string
-  readonly description: string
-  readonly onChange: (checked: boolean) => void
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-3xl border border-border/80 bg-transparent p-4">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-      </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
   )
 }

@@ -441,6 +441,7 @@ export class ConferenceClient {
       return null
     }
 
+    // Порядок слотов стабилен: backend связывает mid с kind и не угадывает camera/screen по очередности.
     this.audioTransceiver = this.publisherPc.addTransceiver('audio', { direction: 'sendonly' })
     this.cameraTransceiver = this.publisherPc.addTransceiver('video', { direction: 'sendonly' })
     this.screenTransceiver = this.publisherPc.addTransceiver('video', { direction: 'sendonly' })
@@ -968,6 +969,7 @@ export class ConferenceClient {
 
   private buildPublisherSlotBindings(): Record<string, SlotKind> {
     const bindings: Record<string, SlotKind> = {}
+    // screenAudio — отдельный RTC-слот, его нельзя смешивать с микрофоном.
     const slots: Array<readonly [SlotKind, RTCRtpTransceiver | null]> = [
       ['audio', this.audioTransceiver],
       ['camera', this.cameraTransceiver],

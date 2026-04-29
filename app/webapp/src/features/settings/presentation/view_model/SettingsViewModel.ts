@@ -97,6 +97,7 @@ export class SettingsViewModel extends ViewModel {
   private async open() {
     this.updateState((state) => ({
       ...state,
+      isOpen: true,
       loading: true,
       error: null
     }))
@@ -123,6 +124,7 @@ export class SettingsViewModel extends ViewModel {
     this.stopLocalPreviewUseCase.execute()
     this.updateState((state) => ({
       ...state,
+      isOpen: false,
       activeTab: 'profile',
       preview: null
     }))
@@ -131,7 +133,7 @@ export class SettingsViewModel extends ViewModel {
   private async selectTab(tab: SettingsTab) {
     this.updateState((state) => ({ ...state, activeTab: tab }))
 
-    if (tab === 'media') {
+    if (tab === 'media' && this.state.value.isOpen) {
       await this.startPreview()
       return
     }
@@ -168,7 +170,7 @@ export class SettingsViewModel extends ViewModel {
   private async selectMicrophone(deviceId: string | null) {
     this.updateState((state) => ({ ...state, selectedMicrophoneId: deviceId }))
     this.savePreferredMicrophoneUseCase.execute(deviceId)
-    if (this.state.value.activeTab === 'media') {
+    if (this.state.value.isOpen && this.state.value.activeTab === 'media') {
       await this.startPreview()
     }
   }
@@ -176,7 +178,7 @@ export class SettingsViewModel extends ViewModel {
   private async selectCamera(deviceId: string | null) {
     this.updateState((state) => ({ ...state, selectedCameraId: deviceId }))
     this.savePreferredCameraUseCase.execute(deviceId)
-    if (this.state.value.activeTab === 'media') {
+    if (this.state.value.isOpen && this.state.value.activeTab === 'media') {
       await this.startPreview()
     }
   }
@@ -184,6 +186,11 @@ export class SettingsViewModel extends ViewModel {
   private async startPreview() {
     const requestId = ++this.previewRequestId
     const state = this.state.value
+
+    // Preview трогаем только у открытой media-вкладки, иначе settings незаметно забирает камеру.
+    if (!state.isOpen || state.activeTab !== 'media') {
+      return
+    }
 
     const result = await this.startLocalPreviewUseCase.execute({
       micEnabled: state.micEnabled,

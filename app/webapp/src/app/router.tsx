@@ -1,7 +1,5 @@
-import { kvtLayoutRoute, kvtRoute } from '@kvt/react'
+import { kvtFeatureRoute, kvtLayoutRoute } from '@kvt/react'
 import { AppLayout, FeatureFallback } from './App'
-import { HomePage } from '@features/home/presentation/view/HomePage'
-import { RoomPage } from '@features/room/presentation/view/RoomPage'
 
 /**
  * Routes are now declarative framework inputs.
@@ -14,17 +12,24 @@ export const appRoutes = [
     element: <AppLayout />,
     fallback: <FeatureFallback />,
     children: [
-      kvtRoute({
+      kvtFeatureRoute({
         index: true,
-        element: <HomePage />
+        moduleKey: 'home',
+        module: () => import('@features/home/di'),
+        component: () => import('@features/home/presentation/view/HomePage').then((m) => m.HomePage)
       }),
-      kvtRoute({
+      kvtFeatureRoute({
         path: '/home',
-        element: <HomePage />
+        moduleKey: 'home',
+        module: () => import('@features/home/di'),
+        component: () => import('@features/home/presentation/view/HomePage').then((m) => m.HomePage)
       }),
-      kvtRoute({
+      // Room route owns the heavy conference ViewModel and its prejoin dependencies.
+      kvtFeatureRoute({
         path: '/rooms/:roomId',
-        element: <RoomPage />
+        moduleKey: 'room',
+        module: () => import('@features/room/di'),
+        component: () => import('@features/room/presentation/view/RoomPage').then((m) => m.RoomPage)
       })
     ]
   })

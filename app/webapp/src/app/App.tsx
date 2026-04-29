@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { KvtOutlet } from '@kvt/react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
-import { Button, Card, CardContent } from '@core/design-system'
-import { SettingsIcon, SettingsModal } from '@features/settings/presentation/view/SettingsModal'
+import { Button, KvatumLoader } from '@core/design-system'
+import { SettingsIcon, SettingsModalHost } from '@features/settings/presentation/view/SettingsModal'
 
 export function AppLayout() {
   const { t } = useTranslation('common')
@@ -30,7 +30,13 @@ export function AppLayout() {
         </Button>
       )}
 
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {!roomChromeOwnsSettings && (
+        <SettingsModalHost
+          open={settingsOpen}
+          viewModelKey="settings:global"
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </main>
   )
 }
@@ -39,13 +45,16 @@ export function FeatureFallback() {
   const { t } = useTranslation('common')
 
   return (
-    <section className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 md:px-6">
-      <Card className="rounded-4xl">
-        <CardContent className="p-8">
-          <h2 className="text-2xl font-semibold text-surface-foreground">{t('loading.title')}</h2>
-          <p className="mt-3 text-sm text-muted-foreground">{t('loading.description')}</p>
-        </CardContent>
-      </Card>
+    <section className="grid min-h-screen place-items-center px-4 py-10">
+      <div className="grid justify-items-center gap-5 text-center">
+        <KvatumLoader label={t('loading.title')} />
+        <div>
+          <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
+            {t('loading.title')}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">{t('loading.description')}</p>
+        </div>
+      </div>
     </section>
   )
 }

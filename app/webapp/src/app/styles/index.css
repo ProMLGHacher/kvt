@@ -126,9 +126,145 @@
     animation-delay: 520ms;
   }
 
+  @keyframes kvatum-loader-breathe {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+
+    45% {
+      transform: translateY(-5px) scale(1.025);
+    }
+  }
+
+  @keyframes kvatum-loader-cloud {
+    0%,
+    100% {
+      stroke-dashoffset: 0;
+      filter: drop-shadow(0 16px 26px rgb(0 0 0 / 0.12));
+    }
+
+    50% {
+      stroke-dashoffset: -18;
+      filter: drop-shadow(0 22px 34px rgb(75 88 245 / 0.18));
+    }
+  }
+
+  @keyframes kvatum-loader-wink {
+    0%,
+    33%,
+    42%,
+    100% {
+      transform: translate(78.5px, 49.5px) scaleY(1);
+    }
+
+    37% {
+      transform: translate(78.5px, 49.5px) scaleY(0.12);
+    }
+  }
+
+  @keyframes kvatum-loader-smile {
+    0%,
+    100% {
+      stroke-dashoffset: 22;
+      opacity: 0.55;
+    }
+
+    48%,
+    82% {
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
+  }
+
+  @keyframes kvatum-loader-dot {
+    0%,
+    100% {
+      opacity: 0.22;
+      transform: translateY(0) scale(0.72);
+    }
+
+    50% {
+      opacity: 1;
+      transform: translateY(-8px) scale(1);
+    }
+  }
+
+  @keyframes kvatum-loader-halo {
+    0%,
+    100% {
+      opacity: 0.5;
+      transform: scale(0.9);
+    }
+
+    50% {
+      opacity: 0.9;
+      transform: scale(1.08);
+    }
+  }
+
+  .kvatum-loader-scene {
+    animation: kvatum-loader-breathe 2300ms ease-in-out infinite;
+  }
+
+  .kvatum-loader-logo {
+    color: var(--color-foreground);
+  }
+
+  .kvatum-loader-halo {
+    animation: kvatum-loader-halo 2300ms ease-in-out infinite;
+  }
+
+  .kvatum-loader-cloud {
+    stroke-dasharray: 16 7;
+    animation: kvatum-loader-cloud 2300ms ease-in-out infinite;
+  }
+
+  .kvatum-loader-tail {
+    transform-origin: 34px 99px;
+    animation: kvatum-loader-breathe 2300ms ease-in-out infinite reverse;
+  }
+
+  .kvatum-loader-eye {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: kvatum-loader-wink 2300ms ease-in-out infinite;
+  }
+
+  .kvatum-loader-glint {
+    opacity: 0.88;
+  }
+
+  .kvatum-loader-smile {
+    stroke-dasharray: 22;
+    animation: kvatum-loader-smile 2300ms ease-in-out infinite;
+  }
+
+  .kvatum-loader-dot {
+    fill: var(--color-primary);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: kvatum-loader-dot 2300ms ease-in-out infinite;
+  }
+
+  .kvatum-loader-dot-2 {
+    animation-delay: 180ms;
+  }
+
+  .kvatum-loader-dot-3 {
+    animation-delay: 360ms;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-panel-in,
-    .speaking-ring {
+    .speaking-ring,
+    .kvatum-loader-scene,
+    .kvatum-loader-halo,
+    .kvatum-loader-cloud,
+    .kvatum-loader-tail,
+    .kvatum-loader-eye,
+    .kvatum-loader-smile,
+    .kvatum-loader-dot {
       animation: none;
     }
   }

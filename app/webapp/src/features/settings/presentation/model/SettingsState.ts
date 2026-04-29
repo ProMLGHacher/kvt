@@ -6,6 +6,7 @@ export type SettingsTab = 'profile' | 'media' | 'appearance'
 export type SettingsErrorMessageKey = PrefixedTranslationKey<'common', 'settings.errors'>
 
 export type SettingsUiState = {
+  readonly isOpen: boolean
   readonly activeTab: SettingsTab
   readonly loading: boolean
   readonly devices: readonly MediaDevice[]
@@ -34,6 +35,7 @@ export type SettingsUiEffect = {
 }
 
 export const initialSettingsState: SettingsUiState = {
+  isOpen: false,
   activeTab: 'profile',
   loading: false,
   devices: [],
