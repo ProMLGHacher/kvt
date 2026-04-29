@@ -1,4 +1,5 @@
 import { err, ok, type MutableStateFlow, type PromiseResult } from '@kvt/core'
+import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
 import type {
   LocalMediaState,
   LocalMediaTrackKind,
@@ -14,9 +15,13 @@ type PreviewState = LocalMediaState['preview']
 export class BrowserLocalPreviewRepository implements LocalPreviewRepository {
   private readonly mediaState: MutableStateFlow<LocalMediaState>
   private previewStream: MediaStream | null = null
+  private rawPreviewStream: MediaStream | null = null
   private previewRequestId = 0
 
-  constructor(stateStore: LocalMediaStateStore) {
+  constructor(
+    stateStore: LocalMediaStateStore,
+    private readonly audioProcessingRepository: AudioProcessingRepository
+  ) {
     this.mediaState = stateStore.mediaState
   }
 
@@ -37,17 +42,28 @@ export class BrowserLocalPreviewRepository implements LocalPreviewRepository {
     this.markPreviewAsRequesting()
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(
+      const rawStream = await navigator.mediaDevices.getUserMedia(
         this.createPreviewConstraints(params)
       )
 
       if (!this.isLatestPreviewRequest(requestId)) {
-        stopStream(stream)
+        stopStream(rawStream)
         return ok()
       }
 
+      const stream = await this.createOutputPreviewStream(rawStream, params)
+
+      if (!this.isLatestPreviewRequest(requestId)) {
+        stopStream(rawStream)
+        stopStream(stream)
+        this.audioProcessingRepository.release('local-preview')
+        return ok()
+      }
+
+      this.rawPreviewStream = rawStream
       this.previewStream = stream
       this.applyPreviewEnabledState(stream, params)
+      this.applyPreviewEnabledState(rawStream, params)
       this.markPreviewAsReady(params, stream)
 
       return ok()
@@ -132,7 +148,8 @@ export class BrowserLocalPreviewRepository implements LocalPreviewRepository {
       micEnabled: overrides.micEnabled ?? currentPreview.micEnabled,
       cameraEnabled: overrides.cameraEnabled ?? currentPreview.cameraEnabled,
       microphoneDeviceId: this.deviceIdFor('audio'),
-      cameraDeviceId: this.deviceIdFor('camera')
+      cameraDeviceId: this.deviceIdFor('camera'),
+      audioProcessing: this.audioProcessingRepository.state.value.settings
     })
   }
 
@@ -150,12 +167,17 @@ export class BrowserLocalPreviewRepository implements LocalPreviewRepository {
   }
 
   private stopCurrentPreviewStream(): void {
-    if (!this.previewStream) {
-      return
+    this.audioProcessingRepository.release('local-preview')
+
+    if (this.previewStream) {
+      stopStream(this.previewStream)
+      this.previewStream = null
     }
 
-    stopStream(this.previewStream)
-    this.previewStream = null
+    if (this.rawPreviewStream) {
+      stopStream(this.rawPreviewStream)
+      this.rawPreviewStream = null
+    }
   }
 
   private markPreviewAsRequesting(): void {
@@ -248,6 +270,34 @@ export class BrowserLocalPreviewRepository implements LocalPreviewRepository {
   private applyPreviewEnabledState(stream: MediaStream, params: StartLocalPreviewParams): void {
     setTracksEnabled(stream.getAudioTracks(), params.micEnabled)
     setTracksEnabled(stream.getVideoTracks(), params.cameraEnabled)
+  }
+
+  private async createOutputPreviewStream(
+    rawStream: MediaStream,
+    params: StartLocalPreviewParams
+  ): Promise<MediaStream> {
+    if (params.audioProcessing) {
+      this.audioProcessingRepository.configure(params.audioProcessing)
+    }
+
+    const outputStream = new MediaStream()
+    const audioTrack = firstOrNull(rawStream.getAudioTracks())
+
+    if (audioTrack) {
+      const processedAudio = await this.audioProcessingRepository.createProcessedMicrophoneStream({
+        owner: 'local-preview',
+        rawStream
+      })
+
+      if (processedAudio.ok) {
+        processedAudio.value.getAudioTracks().forEach((track) => outputStream.addTrack(track))
+      } else {
+        outputStream.addTrack(audioTrack)
+      }
+    }
+
+    rawStream.getVideoTracks().forEach((track) => outputStream.addTrack(track))
+    return outputStream
   }
 
   private deviceIdFor(kind: LocalMediaTrackKind): string | null {

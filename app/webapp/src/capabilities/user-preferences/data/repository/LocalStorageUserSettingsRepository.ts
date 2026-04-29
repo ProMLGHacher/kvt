@@ -1,3 +1,8 @@
+import {
+  createDefaultAudioProcessingSettings,
+  normalizeAudioProcessingSettings,
+  type AudioProcessingSettings
+} from '@capabilities/audio-processing/domain/model'
 import type { UserSettings } from '@capabilities/user-preferences/domain/model/UserSettings'
 import type { UserSettingsRepository } from '@capabilities/user-preferences/domain/repository/UserSettingsRepository'
 
@@ -10,7 +15,8 @@ const defaultSettings: UserSettings = {
   preferredCameraId: null,
   defaultMicEnabled: true,
   defaultCameraEnabled: false,
-  defaultNoiseSuppressionEnabled: true
+  defaultNoiseSuppressionEnabled: true,
+  audioProcessing: createDefaultAudioProcessingSettings()
 }
 
 export class LocalStorageUserSettingsRepository implements UserSettingsRepository {
@@ -42,6 +48,10 @@ export class LocalStorageUserSettingsRepository implements UserSettingsRepositor
     this.write({ ...this.read(), defaultNoiseSuppressionEnabled: enabled })
   }
 
+  async saveAudioProcessing(settings: AudioProcessingSettings): Promise<void> {
+    this.write({ ...this.read(), audioProcessing: normalizeAudioProcessingSettings(settings) })
+  }
+
   private read(): UserSettings {
     const stored = localStorage.getItem(storageKey) ?? localStorage.getItem(legacyStorageKey)
     if (!stored) {
@@ -49,7 +59,12 @@ export class LocalStorageUserSettingsRepository implements UserSettingsRepositor
     }
 
     try {
-      return { ...defaultSettings, ...JSON.parse(stored) }
+      const parsed = JSON.parse(stored)
+      return {
+        ...defaultSettings,
+        ...parsed,
+        audioProcessing: normalizeAudioProcessingSettings(parsed.audioProcessing)
+      }
     } catch {
       return defaultSettings
     }

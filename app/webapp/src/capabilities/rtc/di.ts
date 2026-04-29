@@ -1,4 +1,6 @@
 import { Inject, Module, Provides, Singleton, createModuleFromClass } from '@kvt/core'
+import { audioProcessingRepositoryToken } from '@capabilities/audio-processing/domain/repository/tokens'
+import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
 import { BrowserRtcRepository } from './data/repository/BrowserRtcRepository'
 import { BrowserSignalingRepository } from './data/repository/BrowserSignalingRepository'
 import { rtcRepositoryToken, signalingRepositoryToken } from './domain/repository/tokens'
@@ -16,8 +18,10 @@ import type { SignalingRepository } from './domain/repository/SignalingRepositor
 class RtcModule {
   @Provides(rtcRepositoryToken)
   @Singleton({ lazy: true })
-  static provideRtcRepository(): RtcRepository {
-    return new BrowserRtcRepository()
+  static provideRtcRepository(
+    @Inject(audioProcessingRepositoryToken) audioProcessing: AudioProcessingRepository
+  ): RtcRepository {
+    return new BrowserRtcRepository(audioProcessing)
   }
 
   @Provides(signalingRepositoryToken)

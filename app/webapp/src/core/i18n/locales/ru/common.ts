@@ -17,6 +17,7 @@ export default {
     tabs: {
       profile: 'Профиль',
       media: 'Медиа',
+      audio: 'Звук',
       appearance: 'Интерфейс'
     },
     profile: {
@@ -34,6 +35,36 @@ export default {
       cameraHint: 'По умолчанию входить с включенной камерой.',
       defaultDevice: 'По умолчанию',
       previewOff: 'Камера выключена или превью недоступно.'
+    },
+    audio: {
+      title: 'Звук',
+      description: 'Соберите цепочку обработки микрофона. Она применяется к прослушке и звонкам.',
+      monitor: 'Прослушка',
+      monitorHint: 'Слышать свой обработанный микрофон локально.',
+      addPlugin: 'Добавить плагин',
+      locked: 'Всегда первый',
+      enabled: 'Включен',
+      remove: 'Удалить',
+      moveUp: 'Выше',
+      moveDown: 'Ниже',
+      plugins: {
+        volume: 'Громкость',
+        noiseGate: 'Noise gate',
+        compressor: 'Компрессия',
+        equalizer10: '10-полосный эквалайзер',
+        saturator: 'Сатуратор'
+      },
+      fields: {
+        gain: 'Громкость',
+        threshold: 'Порог',
+        attack: 'Атака',
+        release: 'Релиз',
+        ratio: 'Ratio',
+        makeup: 'Makeup',
+        drive: 'Drive',
+        mix: 'Mix',
+        output: 'Выход'
+      }
     },
     appearance: {
       title: 'Интерфейс',

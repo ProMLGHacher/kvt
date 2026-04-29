@@ -6,6 +6,7 @@ import { Alert, AlertDescription, Button, Dialog, useToast } from '@core/design-
 import { setLanguage } from '@core/i18n/config'
 import { SettingsViewModel } from '../view_model/SettingsViewModel'
 import { AppearanceSettings } from './AppearanceSettings'
+import { AudioSettings } from './AudioSettings'
 import { MediaSettings } from './MediaSettings'
 import { ProfileSettings } from './ProfileSettings'
 import { SettingsSidebar } from './SettingsSidebar'
@@ -110,6 +111,32 @@ export function SettingsModal({
               }
               onMicrophoneSelect={(deviceId) =>
                 viewModel.onEvent({ type: 'microphone-selected', deviceId })
+              }
+            />
+          )}
+
+          {uiState.activeTab === 'audio' && (
+            <AudioSettings
+              audioProcessing={uiState.audioProcessing}
+              meter={uiState.audioMeter}
+              onMonitorChange={(enabled) =>
+                viewModel.onEvent({ type: 'audio-monitor-toggled', enabled })
+              }
+              onPluginAdd={(kind) => viewModel.onEvent({ type: 'audio-plugin-added', kind })}
+              onPluginConfigChange={(pluginId, config) =>
+                viewModel.onEvent({ type: 'audio-plugin-config-changed', pluginId, config })
+              }
+              onPluginDrop={(pluginId, targetPluginId) =>
+                viewModel.onEvent({ type: 'audio-plugin-dropped', pluginId, targetPluginId })
+              }
+              onPluginEnabledChange={(pluginId, enabled) =>
+                viewModel.onEvent({ type: 'audio-plugin-enabled-changed', pluginId, enabled })
+              }
+              onPluginMove={(pluginId, direction) =>
+                viewModel.onEvent({ type: 'audio-plugin-moved', pluginId, direction })
+              }
+              onPluginRemove={(pluginId) =>
+                viewModel.onEvent({ type: 'audio-plugin-removed', pluginId })
               }
             />
           )}

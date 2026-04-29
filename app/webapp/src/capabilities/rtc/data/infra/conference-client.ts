@@ -1,4 +1,5 @@
 import { SignalingClient, type SignalingState } from './signaling'
+import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
 import type {
   CandidatePayload,
   ErrorPayload,
@@ -79,6 +80,7 @@ type StartOptions = {
   iceServers: ICEServerConfig[]
   micEnabled: boolean
   cameraEnabled: boolean
+  microphoneDeviceId?: string | null
 }
 
 export class ConferenceClient {
@@ -90,6 +92,7 @@ export class ConferenceClient {
   private screenTransceiver: RTCRtpTransceiver | null = null
   private screenAudioTransceiver: RTCRtpTransceiver | null = null
   private localAudioTrack: MediaStreamTrack | null = null
+  private localAudioRawStream: MediaStream | null = null
   private localCameraTrack: MediaStreamTrack | null = null
   private localScreenTrack: MediaStreamTrack | null = null
   private localScreenAudioTrack: MediaStreamTrack | null = null
@@ -108,7 +111,10 @@ export class ConferenceClient {
   private subscriberRecovery: PeerRuntimeRecoveryState = createPeerRecoveryState()
   private closed = false
 
-  constructor(private events: ConferenceEvents) {}
+  constructor(
+    private events: ConferenceEvents,
+    private readonly audioProcessingRepository: AudioProcessingRepository
+  ) {}
 
   async start(options: StartOptions) {
     try {
@@ -168,8 +174,24 @@ export class ConferenceClient {
       }
 
       if (!this.localAudioTrack) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-        this.localAudioTrack = stream.getAudioTracks()[0] ?? null
+        const rawStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: exactDeviceId(this.startOptions?.microphoneDeviceId),
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: false
+        })
+        const processedStream =
+          await this.audioProcessingRepository.createProcessedMicrophoneStream({
+            owner: 'rtc-microphone',
+            rawStream
+          })
+        this.localAudioRawStream = rawStream
+        this.localAudioTrack = processedStream.ok
+          ? (processedStream.value.getAudioTracks()[0] ?? null)
+          : (rawStream.getAudioTracks()[0] ?? null)
         await this.audioTransceiver.sender.replaceTrack(this.localAudioTrack)
       }
 
@@ -286,7 +308,10 @@ export class ConferenceClient {
     this.signaling.close()
     this.publisherPc?.close()
     this.subscriberPc?.close()
+    this.audioProcessingRepository.release('rtc-microphone')
     this.localAudioTrack?.stop()
+    this.localAudioRawStream?.getTracks().forEach((track) => track.stop())
+    this.localAudioRawStream = null
     this.localCameraTrack?.stop()
     this.localScreenTrack?.stop()
     this.localScreenAudioTrack?.stop()
@@ -1229,4 +1254,8 @@ function describeMediaFlowStats(stat: RTCStats) {
     firCount: flow.firCount ?? null,
     nackCount: flow.nackCount ?? null
   }
+}
+
+function exactDeviceId(deviceId: string | null | undefined): MediaTrackConstraints['deviceId'] {
+  return deviceId ? { exact: deviceId } : undefined
 }

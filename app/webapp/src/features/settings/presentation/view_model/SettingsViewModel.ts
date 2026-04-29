@@ -1,6 +1,17 @@
 import { CompositeDisposable, MutableSharedFlow, MutableStateFlow, ViewModel } from '@kvt/core'
+import {
+  createDefaultAudioPlugin,
+  normalizePluginChain,
+  type AudioPluginConfig,
+  type AudioPluginInstance,
+  type AudioPluginKind,
+  type AudioProcessingSettings
+} from '@capabilities/audio-processing/domain/model'
+import type { ConfigureAudioProcessingUseCase } from '@capabilities/audio-processing/domain/usecases/ConfigureAudioProcessingUseCase'
+import type { ObserveAudioProcessingUseCase } from '@capabilities/audio-processing/domain/usecases/ObserveAudioProcessingUseCase'
 import type { MediaError } from '@capabilities/media/domain/model'
 import type { GetUserPreferencesUseCase } from '@capabilities/user-preferences/domain/usecases/GetUserPreferencesUseCase'
+import type { SaveAudioProcessingSettingsUseCase } from '@capabilities/user-preferences/domain/usecases/SaveAudioProcessingSettingsUseCase'
 import type { SaveDefaultCameraEnabledUseCase } from '@capabilities/user-preferences/domain/usecases/SaveDefaultCameraEnabledUseCase'
 import type { SaveDefaultMicEnabledUseCase } from '@capabilities/user-preferences/domain/usecases/SaveDefaultMicEnabledUseCase'
 import type { SaveDisplayNameUseCase } from '@capabilities/user-preferences/domain/usecases/SaveDisplayNameUseCase'
@@ -39,7 +50,10 @@ export class SettingsViewModel extends ViewModel {
     private readonly stopLocalPreviewUseCase: StopLocalPreviewUseCase,
     private readonly setMicrophoneEnabledUseCase: SetMicrophoneEnabledUseCase,
     private readonly setCameraEnabledUseCase: SetCameraEnabledUseCase,
+    private readonly configureAudioProcessingUseCase: ConfigureAudioProcessingUseCase,
+    private readonly observeAudioProcessingUseCase: ObserveAudioProcessingUseCase,
     private readonly saveDisplayNameUseCase: SaveDisplayNameUseCase,
+    private readonly saveAudioProcessingSettingsUseCase: SaveAudioProcessingSettingsUseCase,
     private readonly saveDefaultMicEnabledUseCase: SaveDefaultMicEnabledUseCase,
     private readonly saveDefaultCameraEnabledUseCase: SaveDefaultCameraEnabledUseCase,
     private readonly savePreferredMicrophoneUseCase: SavePreferredMicrophoneUseCase,
@@ -56,6 +70,16 @@ export class SettingsViewModel extends ViewModel {
         this.updateState((state) => ({
           ...state,
           preview: media.preview
+        }))
+      })
+    )
+
+    disposables.add(
+      this.observeAudioProcessingUseCase.execute().subscribe((audioProcessing) => {
+        this.updateState((state) => ({
+          ...state,
+          audioProcessing: audioProcessing.settings,
+          audioMeter: audioProcessing.meter
         }))
       })
     )
@@ -89,6 +113,30 @@ export class SettingsViewModel extends ViewModel {
       case 'camera-selected':
         void this.selectCamera(event.deviceId)
         break
+      case 'audio-monitor-toggled':
+        void this.updateAudioProcessing({
+          ...this.state.value.audioProcessing,
+          monitorEnabled: event.enabled
+        })
+        break
+      case 'audio-plugin-added':
+        void this.addAudioPlugin(event.kind)
+        break
+      case 'audio-plugin-removed':
+        void this.removeAudioPlugin(event.pluginId)
+        break
+      case 'audio-plugin-moved':
+        void this.moveAudioPlugin(event.pluginId, event.direction)
+        break
+      case 'audio-plugin-dropped':
+        void this.dropAudioPlugin(event.pluginId, event.targetPluginId)
+        break
+      case 'audio-plugin-enabled-changed':
+        void this.setAudioPluginEnabled(event.pluginId, event.enabled)
+        break
+      case 'audio-plugin-config-changed':
+        void this.updateAudioPluginConfig(event.pluginId, event.config)
+        break
       default:
         throw new Error(`Unknown event: ${JSON.stringify(event)}`)
     }
@@ -113,6 +161,7 @@ export class SettingsViewModel extends ViewModel {
       loading: false,
       error: devices.ok ? null : settingsMediaErrorMessage(devices.error)
     }))
+    this.configureAudioProcessingUseCase.execute(preferences.audioProcessing)
 
     if (!devices.ok) {
       this.effects.emit({ type: 'show-error', message: settingsMediaErrorMessage(devices.error) })
@@ -133,8 +182,8 @@ export class SettingsViewModel extends ViewModel {
   private async selectTab(tab: SettingsTab) {
     this.updateState((state) => ({ ...state, activeTab: tab }))
 
-    if (tab === 'media' && this.state.value.isOpen) {
-      await this.startPreview()
+    if ((tab === 'media' || tab === 'audio') && this.state.value.isOpen) {
+      await this.startPreview(tab)
       return
     }
 
@@ -170,7 +219,7 @@ export class SettingsViewModel extends ViewModel {
   private async selectMicrophone(deviceId: string | null) {
     this.updateState((state) => ({ ...state, selectedMicrophoneId: deviceId }))
     this.savePreferredMicrophoneUseCase.execute(deviceId)
-    if (this.state.value.isOpen && this.state.value.activeTab === 'media') {
+    if (this.isPreviewTabActive() && !this.state.value.preview?.stream) {
       await this.startPreview()
     }
   }
@@ -178,25 +227,120 @@ export class SettingsViewModel extends ViewModel {
   private async selectCamera(deviceId: string | null) {
     this.updateState((state) => ({ ...state, selectedCameraId: deviceId }))
     this.savePreferredCameraUseCase.execute(deviceId)
-    if (this.state.value.isOpen && this.state.value.activeTab === 'media') {
+    if (this.isPreviewTabActive()) {
       await this.startPreview()
     }
   }
 
-  private async startPreview() {
+  private async addAudioPlugin(kind: AudioPluginKind) {
+    await this.updateAudioProcessing({
+      ...this.state.value.audioProcessing,
+      chain: [...this.state.value.audioProcessing.chain, createDefaultAudioPlugin(kind)]
+    })
+  }
+
+  private async removeAudioPlugin(pluginId: string) {
+    await this.updateAudioProcessing({
+      ...this.state.value.audioProcessing,
+      chain: this.state.value.audioProcessing.chain.filter(
+        (plugin) => plugin.id !== pluginId || plugin.locked
+      )
+    })
+  }
+
+  private async moveAudioPlugin(pluginId: string, direction: 'up' | 'down') {
+    const chain = [...this.state.value.audioProcessing.chain]
+    const index = chain.findIndex((plugin) => plugin.id === pluginId)
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+
+    if (index <= 0 || targetIndex <= 0 || targetIndex >= chain.length) {
+      return
+    }
+
+    const [plugin] = chain.splice(index, 1)
+    chain.splice(targetIndex, 0, plugin)
+    await this.updateAudioProcessing({
+      ...this.state.value.audioProcessing,
+      chain
+    })
+  }
+
+  private async dropAudioPlugin(pluginId: string, targetPluginId: string) {
+    if (pluginId === targetPluginId) {
+      return
+    }
+
+    const chain = [...this.state.value.audioProcessing.chain]
+    const index = chain.findIndex((plugin) => plugin.id === pluginId)
+    const targetIndex = chain.findIndex((plugin) => plugin.id === targetPluginId)
+
+    if (index <= 0 || targetIndex <= 0) {
+      return
+    }
+
+    const [plugin] = chain.splice(index, 1)
+    chain.splice(targetIndex, 0, plugin)
+    await this.updateAudioProcessing({
+      ...this.state.value.audioProcessing,
+      chain
+    })
+  }
+
+  private async setAudioPluginEnabled(pluginId: string, enabled: boolean) {
+    await this.patchAudioPlugin(pluginId, (plugin) =>
+      plugin.kind === 'volume' ? plugin : ({ ...plugin, enabled } as AudioPluginInstance)
+    )
+  }
+
+  private async updateAudioPluginConfig(pluginId: string, config: Partial<AudioPluginConfig>) {
+    await this.patchAudioPlugin(pluginId, (plugin) => patchPluginConfig(plugin, config))
+  }
+
+  private async patchAudioPlugin(
+    pluginId: string,
+    patcher: (plugin: AudioPluginInstance) => AudioPluginInstance
+  ) {
+    await this.updateAudioProcessing({
+      ...this.state.value.audioProcessing,
+      chain: this.state.value.audioProcessing.chain.map((plugin) =>
+        plugin.id === pluginId ? patcher(plugin) : plugin
+      )
+    })
+  }
+
+  private async updateAudioProcessing(settings: AudioProcessingSettings) {
+    const normalizedSettings = {
+      ...settings,
+      chain: normalizePluginChain(settings.chain)
+    }
+
+    this.updateState((state) => ({
+      ...state,
+      audioProcessing: normalizedSettings
+    }))
+    this.configureAudioProcessingUseCase.execute(normalizedSettings)
+    this.saveAudioProcessingSettingsUseCase.execute(normalizedSettings)
+
+    if (this.isPreviewTabActive()) {
+      await this.startPreview()
+    }
+  }
+
+  private async startPreview(tab = this.state.value.activeTab) {
     const requestId = ++this.previewRequestId
     const state = this.state.value
 
-    // Preview трогаем только у открытой media-вкладки, иначе settings незаметно забирает камеру.
-    if (!state.isOpen || state.activeTab !== 'media') {
+    // Preview стартует только на media/audio вкладках, иначе settings незаметно забирает устройства.
+    if (!state.isOpen || (tab !== 'media' && tab !== 'audio')) {
       return
     }
 
     const result = await this.startLocalPreviewUseCase.execute({
-      micEnabled: state.micEnabled,
-      cameraEnabled: state.cameraEnabled,
+      micEnabled: tab === 'audio' ? true : state.micEnabled,
+      cameraEnabled: tab === 'media' ? state.cameraEnabled : false,
       microphoneDeviceId: state.selectedMicrophoneId,
-      cameraDeviceId: state.selectedCameraId
+      cameraDeviceId: state.selectedCameraId,
+      audioProcessing: state.audioProcessing
     })
 
     if (requestId !== this.previewRequestId || result.ok) {
@@ -218,6 +362,13 @@ export class SettingsViewModel extends ViewModel {
   private updateState(updater: (state: SettingsUiState) => SettingsUiState) {
     this.state.update(updater)
   }
+
+  private isPreviewTabActive(): boolean {
+    return (
+      this.state.value.isOpen &&
+      (this.state.value.activeTab === 'media' || this.state.value.activeTab === 'audio')
+    )
+  }
 }
 
 function settingsMediaErrorMessage(error: MediaError): SettingsErrorMessageKey {
@@ -238,3 +389,21 @@ function settingsMediaErrorMessage(error: MediaError): SettingsErrorMessageKey {
 }
 
 export type { SettingsTab }
+
+function patchPluginConfig(
+  plugin: AudioPluginInstance,
+  config: Partial<AudioPluginConfig>
+): AudioPluginInstance {
+  switch (plugin.kind) {
+    case 'volume':
+      return { ...plugin, config: { ...plugin.config, ...config } } as AudioPluginInstance
+    case 'noiseGate':
+      return { ...plugin, config: { ...plugin.config, ...config } } as AudioPluginInstance
+    case 'compressor':
+      return { ...plugin, config: { ...plugin.config, ...config } } as AudioPluginInstance
+    case 'equalizer10':
+      return { ...plugin, config: { ...plugin.config, ...config } } as AudioPluginInstance
+    case 'saturator':
+      return { ...plugin, config: { ...plugin.config, ...config } } as AudioPluginInstance
+  }
+}

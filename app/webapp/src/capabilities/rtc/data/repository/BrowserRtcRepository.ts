@@ -1,4 +1,5 @@
 import { MutableStateFlow, err, ok, type PromiseResult } from '@kvt/core'
+import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
 import type {
   ConnectRtcParams,
   RtcDiagnostics,
@@ -25,6 +26,8 @@ export class BrowserRtcRepository implements RtcRepository {
   private readonly diagnosticsState = new MutableStateFlow<RtcDiagnostics | null>(null)
   private client: ConferenceClient | null = null
 
+  constructor(private readonly audioProcessingRepository: AudioProcessingRepository) {}
+
   readonly session = this.sessionState.asStateFlow()
   readonly diagnostics = this.diagnosticsState.asStateFlow()
 
@@ -39,22 +42,29 @@ export class BrowserRtcRepository implements RtcRepository {
       remoteMediaStreams: {}
     })
 
-    this.client = new ConferenceClient({
-      onSnapshot: (snapshot) => this.applySnapshot(params.participantId, snapshot),
-      onSlotUpdated: (slot) => this.applySlotUpdate(slot),
-      onRemoteTrack: (participantId, kind, stream) =>
-        this.applyRemoteStream(participantId, kind, stream),
-      onRemoteStreamsReset: () => this.clearRemoteStreams(),
-      onLocalSlotStream: (kind, stream) => this.applyLocalSlotStream(kind, stream),
-      onStateChange: (state) => this.updateStatus(state),
-      onDiagnostics: (diagnostics) => this.updateDiagnostics(diagnostics),
-      onError: (message) => {
-        this.diagnosticsState.set({
-          ...(this.diagnosticsState.value ?? emptyDiagnostics()),
-          lastError: message
-        })
-      }
-    })
+    if (params.audioProcessing) {
+      this.audioProcessingRepository.configure(params.audioProcessing)
+    }
+
+    this.client = new ConferenceClient(
+      {
+        onSnapshot: (snapshot) => this.applySnapshot(params.participantId, snapshot),
+        onSlotUpdated: (slot) => this.applySlotUpdate(slot),
+        onRemoteTrack: (participantId, kind, stream) =>
+          this.applyRemoteStream(participantId, kind, stream),
+        onRemoteStreamsReset: () => this.clearRemoteStreams(),
+        onLocalSlotStream: (kind, stream) => this.applyLocalSlotStream(kind, stream),
+        onStateChange: (state) => this.updateStatus(state),
+        onDiagnostics: (diagnostics) => this.updateDiagnostics(diagnostics),
+        onError: (message) => {
+          this.diagnosticsState.set({
+            ...(this.diagnosticsState.value ?? emptyDiagnostics()),
+            lastError: message
+          })
+        }
+      },
+      this.audioProcessingRepository
+    )
 
     try {
       await this.client.start({
@@ -65,7 +75,8 @@ export class BrowserRtcRepository implements RtcRepository {
           credential: server.credential
         })),
         micEnabled: params.micEnabled,
-        cameraEnabled: params.cameraEnabled
+        cameraEnabled: params.cameraEnabled,
+        microphoneDeviceId: params.microphoneDeviceId
       })
       return ok()
     } catch (error) {

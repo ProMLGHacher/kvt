@@ -7,6 +7,7 @@ import type { UpdateVoiceActivitySourcesUseCase } from '@capabilities/voice-acti
 import type { RtcDiagnostics, RtcSession } from '@capabilities/rtc/domain/model'
 import type { ConnectToRoomRtcUseCase } from '@capabilities/rtc/domain/usecases/ConnectToRoomRtcUseCase'
 import type { LoadJoinSessionUseCase } from '@capabilities/session/domain/usecases/LoadJoinSessionUseCase'
+import type { GetUserPreferencesUseCase } from '@capabilities/user-preferences/domain/usecases/GetUserPreferencesUseCase'
 import type { StoredJoinSession } from '@capabilities/session/domain/model/JoinSession'
 import type { ClearJoinSessionUseCase } from '@capabilities/session/domain/usecases/ClearJoinSessionUseCase'
 import type { ExportClientLogsUseCase } from '@capabilities/client-logs/domain/usecases/ExportClientLogsUseCase'
@@ -66,6 +67,7 @@ export class RoomViewModel extends ViewModel {
 
   constructor(
     private readonly loadJoinSessionUseCase: LoadJoinSessionUseCase,
+    private readonly getUserPreferencesUseCase: GetUserPreferencesUseCase,
     private readonly getRoomMetadataUseCase: GetRoomMetadataUseCase,
     private readonly connectToRoomRtcUseCase: ConnectToRoomRtcUseCase,
     private readonly observeRoomSessionUseCase: ObserveRoomSessionUseCase,
@@ -393,6 +395,7 @@ export class RoomViewModel extends ViewModel {
 
   private async connectStoredSession(session: StoredJoinSession, openRoomRequestId?: number) {
     const requestId = this.requestGuards.next('connectRoom')
+    const preferences = await this.getUserPreferencesUseCase.execute()
 
     this.updateState((state) => ({
       ...state,
@@ -408,7 +411,9 @@ export class RoomViewModel extends ViewModel {
       wsUrl: session.wsUrl,
       iceServers: session.iceServers,
       micEnabled: hasEnabledSlot(session.snapshot.participants, session.participantId, 'audio'),
-      cameraEnabled: hasEnabledSlot(session.snapshot.participants, session.participantId, 'camera')
+      cameraEnabled: hasEnabledSlot(session.snapshot.participants, session.participantId, 'camera'),
+      microphoneDeviceId: preferences.preferredMicrophoneId,
+      audioProcessing: preferences.audioProcessing
     })
 
     if (!this.isActualConnectRoomRequest(requestId)) {

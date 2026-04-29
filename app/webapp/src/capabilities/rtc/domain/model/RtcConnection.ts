@@ -1,3 +1,5 @@
+import type { AudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
+
 export type RtcIceServer = {
   readonly credential?: string
   readonly urls: readonly string[]
@@ -11,6 +13,8 @@ export type ConnectRtcParams = {
   readonly iceServers: readonly RtcIceServer[]
   readonly micEnabled: boolean
   readonly cameraEnabled: boolean
+  readonly microphoneDeviceId?: string | null
+  readonly audioProcessing?: AudioProcessingSettings
 }
 
 export type RtcError =

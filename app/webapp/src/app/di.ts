@@ -1,4 +1,5 @@
 import { Module, createModuleFromClass } from '@kvt/core'
+import { audioProcessingModule } from '@capabilities/audio-processing/di'
 import { clientLogsModule } from '@capabilities/client-logs/di'
 import { clipboardModule } from '@capabilities/clipboard/di'
 import { conferenceAudioModule } from '@capabilities/conference-audio/di'
@@ -13,6 +14,7 @@ import { settingsModule } from '@features/settings/di'
 @Module({
   name: 'AppModule',
   includes: [
+    audioProcessingModule,
     clipboardModule,
     clientLogsModule,
     conferenceAudioModule,

@@ -1,4 +1,6 @@
 import { Inject, Module, Provides, Singleton, createModuleFromClass } from '@kvt/core'
+import { audioProcessingRepositoryToken } from '@capabilities/audio-processing/domain/repository/tokens'
+import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
 import { BrowserLocalPreviewRepository } from './data/repository/BrowserLocalPreviewRepository'
 import { BrowserMediaDeviceRepository } from './data/repository/BrowserMediaDeviceRepository'
 import { BrowserScreenShareRepository } from './data/repository/BrowserScreenShareRepository'
@@ -37,9 +39,10 @@ class MediaModule {
   @Provides(localPreviewRepositoryToken)
   @Singleton({ lazy: true })
   static provideLocalPreviewRepository(
-    @Inject(LocalMediaStateStore) stateStore: LocalMediaStateStore
+    @Inject(LocalMediaStateStore) stateStore: LocalMediaStateStore,
+    @Inject(audioProcessingRepositoryToken) audioProcessing: AudioProcessingRepository
   ): LocalPreviewRepository {
-    return new BrowserLocalPreviewRepository(stateStore)
+    return new BrowserLocalPreviewRepository(stateStore, audioProcessing)
   }
 
   @Provides(screenShareRepositoryToken)

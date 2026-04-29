@@ -56,6 +56,19 @@ export function CameraIcon() {
   )
 }
 
+export function AudioIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M5 8v8M9.5 5v14M14.5 9v6M19 6v12"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  )
+}
+
 export function SparkIcon() {
   return (
     <svg aria-hidden="true" className="size-5" fill="none" viewBox="0 0 24 24">

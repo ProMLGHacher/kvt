@@ -1,6 +1,7 @@
 import type { MediaDevice, LocalPreviewState } from '@capabilities/media/domain/model'
 import type { RoomMetadata } from '@features/room/domain/model/Room'
 import type { UserSettings } from '@capabilities/user-preferences/domain/model/UserSettings'
+import type { AudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
 import type { ParticipantRole } from '@features/room/domain/model/Participant'
 
 export type LoadPrejoinContextParams = {
@@ -27,6 +28,7 @@ export type PrejoinMediaPreferences = {
   readonly microphoneDeviceId: string | null
   readonly cameraDeviceId: string | null
   readonly noiseSuppressionEnabled: boolean
+  readonly audioProcessing: AudioProcessingSettings
 }
 
 export type PrejoinPreview = LocalPreviewState

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, NativeSelect, cn } from '@core/design-system'
 import { setLanguage, supportedLanguages, type SupportedLanguage } from '@core/i18n/config'
 import type { SettingsTab } from '../model/SettingsState'
-import { CameraIcon, MoonIcon, SparkIcon, SunIcon, UserIcon } from './settings-icons'
+import { AudioIcon, CameraIcon, MoonIcon, SparkIcon, SunIcon, UserIcon } from './settings-icons'
 
 export interface SettingsSidebarProps {
   readonly activeTab: SettingsTab
@@ -38,6 +38,12 @@ export function SettingsSidebar({
             icon={<CameraIcon />}
             label={t('settings.tabs.media')}
             onClick={() => onTabSelect('media')}
+          />
+          <SettingsTabButton
+            active={activeTab === 'audio'}
+            icon={<AudioIcon />}
+            label={t('settings.tabs.audio')}
+            onClick={() => onTabSelect('audio')}
           />
           <SettingsTabButton
             active={activeTab === 'appearance'}

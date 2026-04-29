@@ -1,4 +1,5 @@
 import type { UserSettings } from '../model/UserSettings'
+import type { AudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
 
 export interface UserSettingsRepository {
   getPreferences(): Promise<UserSettings>
@@ -9,4 +10,5 @@ export interface UserSettingsRepository {
   saveDefaultMicEnabled(enabled: boolean): Promise<void>
   saveDefaultCameraEnabled(enabled: boolean): Promise<void>
   saveDefaultNoiseSuppressionEnabled(enabled: boolean): Promise<void>
+  saveAudioProcessing(settings: AudioProcessingSettings): Promise<void>
 }

@@ -1,3 +1,5 @@
+import type { AudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
+
 export type UserSettings = {
   displayName: string | null
   preferredMicrophoneId: string | null
@@ -5,4 +7,5 @@ export type UserSettings = {
   defaultMicEnabled: boolean
   defaultCameraEnabled: boolean
   defaultNoiseSuppressionEnabled: boolean
+  audioProcessing: AudioProcessingSettings
 }

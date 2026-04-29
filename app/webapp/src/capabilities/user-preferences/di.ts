@@ -5,6 +5,7 @@ import { GetUserPreferencesUseCase } from './domain/usecases/GetUserPreferencesU
 import { SaveDefaultCameraEnabledUseCase } from './domain/usecases/SaveDefaultCameraEnabledUseCase'
 import { SaveDefaultMicEnabledUseCase } from './domain/usecases/SaveDefaultMicEnabledUseCase'
 import { SaveDisplayNameUseCase } from './domain/usecases/SaveDisplayNameUseCase'
+import { SaveAudioProcessingSettingsUseCase } from './domain/usecases/SaveAudioProcessingSettingsUseCase'
 import { SavePreferredCameraUseCase } from './domain/usecases/SavePreferredCameraUseCase'
 import { SavePreferredMicrophoneUseCase } from './domain/usecases/SavePreferredMicrophoneUseCase'
 import type { UserSettingsRepository } from './domain/repository/UserSettingsRepository'
@@ -43,6 +44,13 @@ class UserPreferencesModule {
     @Inject(userSettingsRepositoryToken) repository: UserSettingsRepository
   ) {
     return new SaveDisplayNameUseCase(repository)
+  }
+
+  @Provides(SaveAudioProcessingSettingsUseCase)
+  static provideSaveAudioProcessingSettingsUseCase(
+    @Inject(userSettingsRepositoryToken) repository: UserSettingsRepository
+  ) {
+    return new SaveAudioProcessingSettingsUseCase(repository)
   }
 
   @Provides(SavePreferredCameraUseCase)

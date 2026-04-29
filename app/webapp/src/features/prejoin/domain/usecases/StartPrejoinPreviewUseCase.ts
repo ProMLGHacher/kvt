@@ -14,7 +14,8 @@ export class StartPrejoinPreviewUseCase implements UseCase<
       micEnabled: preferences.micEnabled,
       cameraEnabled: preferences.cameraEnabled,
       microphoneDeviceId: preferences.microphoneDeviceId,
-      cameraDeviceId: preferences.cameraDeviceId
+      cameraDeviceId: preferences.cameraDeviceId,
+      audioProcessing: preferences.audioProcessing
     })
   }
 }

@@ -4,6 +4,7 @@ import { ExportClientLogsUseCase } from '@capabilities/client-logs/domain/usecas
 import { CopyTextUseCase } from '@capabilities/clipboard/domain/usecases/CopyTextUseCase'
 import { PlayConferenceSoundUseCase } from '@capabilities/conference-audio/domain/usecases/PlayConferenceSoundUseCase'
 import { StopLocalPreviewUseCase } from '@capabilities/media/domain/usecases/StopLocalPreviewUseCase'
+import { GetUserPreferencesUseCase } from '@capabilities/user-preferences/domain/usecases/GetUserPreferencesUseCase'
 import { ConnectToRoomRtcUseCase } from '@capabilities/rtc/domain/usecases/ConnectToRoomRtcUseCase'
 import { DisconnectRtcUseCase } from '@capabilities/rtc/domain/usecases/DisconnectRtcUseCase'
 import { SetRtcCameraEnabledUseCase } from '@capabilities/rtc/domain/usecases/SetRtcCameraEnabledUseCase'
@@ -89,6 +90,7 @@ class RoomModule {
   @ViewModelProvider()
   static provideRoomViewModel(
     @Inject(LoadJoinSessionUseCase) loadSession: LoadJoinSessionUseCase,
+    @Inject(GetUserPreferencesUseCase) getUserPreferences: GetUserPreferencesUseCase,
     @Inject(GetRoomMetadataUseCase) getRoomMetadata: GetRoomMetadataUseCase,
     @Inject(ConnectToRoomRtcUseCase) connectRtc: ConnectToRoomRtcUseCase,
     @Inject(ObserveRoomSessionUseCase) observeRoom: ObserveRoomSessionUseCase,
@@ -109,6 +111,7 @@ class RoomModule {
   ) {
     return new RoomViewModel(
       loadSession,
+      getUserPreferences,
       getRoomMetadata,
       connectRtc,
       observeRoom,

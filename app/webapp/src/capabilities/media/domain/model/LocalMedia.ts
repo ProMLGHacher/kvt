@@ -1,4 +1,5 @@
 import type { MediaDeviceId } from './MediaDevice'
+import type { AudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
 
 export type LocalMediaTrackKind = 'audio' | 'camera' | 'screen' | 'screenAudio'
 
@@ -30,6 +31,7 @@ export type StartLocalPreviewParams = {
   readonly cameraEnabled: boolean
   readonly microphoneDeviceId?: string | null
   readonly cameraDeviceId?: string | null
+  readonly audioProcessing?: AudioProcessingSettings
 }
 
 export type MediaError =

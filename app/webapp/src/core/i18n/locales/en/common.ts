@@ -20,6 +20,7 @@ export default defineResource<typeof ruCommon>()({
     tabs: {
       profile: 'Profile',
       media: 'Media',
+      audio: 'Audio',
       appearance: 'Interface'
     },
     profile: {
@@ -37,6 +38,36 @@ export default defineResource<typeof ruCommon>()({
       cameraHint: 'Join with camera enabled by default.',
       defaultDevice: 'Default',
       previewOff: 'Camera is off or preview is unavailable.'
+    },
+    audio: {
+      title: 'Audio',
+      description: 'Build your microphone processing chain. It applies to monitoring and calls.',
+      monitor: 'Monitoring',
+      monitorHint: 'Hear your processed microphone locally.',
+      addPlugin: 'Add plugin',
+      locked: 'Always first',
+      enabled: 'Enabled',
+      remove: 'Remove',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
+      plugins: {
+        volume: 'Volume',
+        noiseGate: 'Noise gate',
+        compressor: 'Compression',
+        equalizer10: '10-band equalizer',
+        saturator: 'Saturator'
+      },
+      fields: {
+        gain: 'Volume',
+        threshold: 'Threshold',
+        attack: 'Attack',
+        release: 'Release',
+        ratio: 'Ratio',
+        makeup: 'Makeup',
+        drive: 'Drive',
+        mix: 'Mix',
+        output: 'Output'
+      }
     },
     appearance: {
       title: 'Interface',

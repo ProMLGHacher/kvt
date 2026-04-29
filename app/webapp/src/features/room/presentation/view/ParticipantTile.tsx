@@ -78,11 +78,11 @@ export function ParticipantTile({ tile, speaking, pinned, onPin, t }: Participan
                   {tile.participant.displayName.slice(0, 1).toUpperCase()}
                 </span>
               </div>
-              {tile.awaitingMedia && (
+              {/* {tile.awaitingMedia && (
                 <p className="mt-4 max-w-64 text-sm leading-6 text-slate-300">
                   {t('room.participant.waitingMedia')}
                 </p>
-              )}
+              )} */}
             </div>
           </div>
         )}

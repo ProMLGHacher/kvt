@@ -145,7 +145,8 @@ export class PrejoinViewModel extends ViewModel {
       micEnabled: preferences.defaultMicEnabled,
       cameraEnabled: preferences.defaultCameraEnabled,
       selectedMicrophoneId: preferences.preferredMicrophoneId,
-      selectedCameraId: preferences.preferredCameraId
+      selectedCameraId: preferences.preferredCameraId,
+      audioProcessing: preferences.audioProcessing
     }))
 
     // После загрузки контекста сразу запускаем локальный preview с выбранными настройками.
@@ -367,7 +368,8 @@ export class PrejoinViewModel extends ViewModel {
       cameraEnabled: state.cameraEnabled,
       microphoneDeviceId: state.selectedMicrophoneId,
       cameraDeviceId: state.selectedCameraId,
-      noiseSuppressionEnabled: true
+      noiseSuppressionEnabled: true,
+      audioProcessing: state.audioProcessing
     })
 
     if (!this.isActualStartPreviewRequest(requestId)) {

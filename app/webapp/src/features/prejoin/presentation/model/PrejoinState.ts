@@ -2,6 +2,8 @@ import type { ButtonState } from '@core/utils/ButtonState'
 import type { FormFieldStateWithShowError } from '@core/utils/FormFieldState'
 import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
 import type { MediaDevice, LocalPreviewState } from '@capabilities/media/domain/model'
+import type { AudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
+import { createDefaultAudioProcessingSettings } from '@capabilities/audio-processing/domain/model'
 import type { ParticipantRole } from '@features/room/domain/model/Participant'
 
 export type PrejoinErrorMessageKey = PrefixedTranslationKey<'voice', 'prejoin.errors'>
@@ -17,6 +19,7 @@ export type PrejoinUiState = {
   readonly selectedCameraId: string | null
   readonly devices: readonly MediaDevice[]
   readonly preview: LocalPreviewState | null
+  readonly audioProcessing: AudioProcessingSettings
   readonly joinButton: ButtonState
   readonly error: PrejoinErrorMessageKey | null
 }
@@ -57,6 +60,7 @@ export const initialPrejoinState: PrejoinUiState = {
     status: 'idle',
     error: null
   },
+  audioProcessing: createDefaultAudioProcessingSettings(),
   joinButton: { enabled: false, loading: false, error: null },
   error: null
 }
