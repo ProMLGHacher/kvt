@@ -7,36 +7,70 @@ const allowedHosts = process.env.VITE_ALLOWED_HOSTS?.split(',')
   .map((host) => host.trim())
   .filter(Boolean)
 const apiProxyTarget = process.env.VITE_API_PROXY_TARGET?.trim() || 'http://localhost:8023'
-const productionSiteUrl = process.env.VITE_PRODUCTION_SITE_URL?.trim() || 'https://kvatum.ru'
-const allowIndexing = process.env.VITE_ALLOW_INDEXING === 'true'
+const productionSiteUrl = (
+  process.env.VITE_PRODUCTION_SITE_URL?.trim() || 'https://kvatum.ru'
+).replace(/\/+$/, '')
 
-function createRobotsTxt(): string {
+function resolveAllowIndexing(mode: string): boolean {
+  const explicitValue = process.env.VITE_ALLOW_INDEXING?.trim()
+
+  if (explicitValue) {
+    return explicitValue === 'true'
+  }
+
+  return mode === 'production'
+}
+
+function createRobotsTxt(allowIndexing: boolean): string {
   if (!allowIndexing) {
     return ['User-agent: *', 'Disallow: /', ''].join('\n')
   }
 
-  return ['User-agent: *', 'Allow: /', '', `Sitemap: ${productionSiteUrl}/sitemap.xml`, ''].join('\n')
+  return ['User-agent: *', 'Allow: /', '', `Sitemap: ${productionSiteUrl}/sitemap.xml`, ''].join(
+    '\n'
+  )
+}
+
+function createSitemapXml(): string {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    '  <url>',
+    `    <loc>${productionSiteUrl}/</loc>`,
+    '    <changefreq>weekly</changefreq>',
+    '    <priority>1.0</priority>',
+    '  </url>',
+    '</urlset>',
+    ''
+  ].join('\n')
 }
 
 // https://vite.dev/config/
-export default defineConfig(() => {
-  const robotsTxt = createRobotsTxt()
+export default defineConfig(({ mode }) => {
+  const robotsTxt = createRobotsTxt(resolveAllowIndexing(mode))
+  const sitemapXml = createSitemapXml()
 
   return {
     plugins: [
       react(),
       tailwindcss(),
       {
-        name: 'robots-txt-by-mode',
+        name: 'seo-files-by-mode',
         configureServer(server) {
           server.middlewares.use((req, res, next) => {
-            if (req.url !== '/robots.txt') {
-              next()
+            if (req.url === '/robots.txt') {
+              res.setHeader('Content-Type', 'text/plain')
+              res.end(robotsTxt)
               return
             }
 
-            res.setHeader('Content-Type', 'text/plain')
-            res.end(robotsTxt)
+            if (req.url === '/sitemap.xml') {
+              res.setHeader('Content-Type', 'application/xml')
+              res.end(sitemapXml)
+              return
+            }
+
+            next()
           })
         },
         generateBundle() {
@@ -44,6 +78,11 @@ export default defineConfig(() => {
             type: 'asset',
             fileName: 'robots.txt',
             source: robotsTxt
+          })
+          this.emitFile({
+            type: 'asset',
+            fileName: 'sitemap.xml',
+            source: sitemapXml
           })
         }
       }
