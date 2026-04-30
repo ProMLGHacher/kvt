@@ -30,11 +30,11 @@ func (s *Server) handleSwagger(w http.ResponseWriter, r *http.Request) {
 var openAPISpec = mustMarshalOpenAPI(map[string]any{
 	"openapi": "3.1.0",
 	"info": map[string]any{
-		"title":       "Voice-First SFU Conference API",
+		"title":       "Kvatum Conference API",
 		"version":     "0.1.0",
-		"description": "HTTP and WebSocket API for creating voice-first rooms, joining by room id, receiving ICE configuration, and running custom WebRTC signaling for publisher/subscriber peer connections. Media itself is transported by WebRTC through the Pion SFU and optional TURN relay; REST is used only for room/session bootstrap.",
+		"description": "HTTP API for product room bootstrap. Realtime signaling and media routing are handled by RMS (Realtime Media Service) through the browser SDK.",
 		"contact": map[string]any{
-			"name": "Voice-First SFU backend",
+			"name": "Kvatum backend",
 		},
 	},
 	"servers": []any{
@@ -128,7 +128,7 @@ var openAPISpec = mustMarshalOpenAPI(map[string]any{
 			"post": map[string]any{
 				"tags":        []any{"Rooms"},
 				"summary":     "Join a room by id",
-				"description": "Creates or refreshes a participant session for the given room id and returns the WebSocket URL, ICE server configuration, participant id, role, and current room snapshot. After this response, the client opens the returned wsUrl and starts publisher/subscriber WebRTC negotiation.",
+				"description": "Creates or refreshes a participant session for the given room id and returns RMS bootstrap data: joinToken, rmsUrl, ICE server configuration, participant id, role, and current room snapshot. The browser SDK opens /v1/connect on RMS with the returned joinToken.",
 				"operationId": "joinRoomByID",
 				"parameters":  []any{roomIDParameter()},
 				"requestBody": map[string]any{
@@ -202,20 +202,20 @@ var openAPISpec = mustMarshalOpenAPI(map[string]any{
 				},
 			},
 		},
-		"/ws": map[string]any{
+		"/v1/connect": map[string]any{
 			"get": map[string]any{
 				"tags":        []any{"Signaling"},
-				"summary":     "Open signaling WebSocket",
-				"description": "Upgrades to a WebSocket signaling session after POST /api/rooms/{roomId}/join. Clients must pass the returned sessionId as a query parameter. JSON messages use the SignalEnvelope schema. This socket does not carry media; it carries room snapshots, SDP offers/answers, ICE candidates, heartbeat ping/pong, slot state updates, and ICE restart requests.",
-				"operationId": "openSignalingWebSocket",
+				"summary":     "Open RMS signaling WebSocket",
+				"description": "Upgrades to a WebSocket signaling session. Clients pass the server-issued joinToken as a query parameter. JSON messages use the SignalEnvelope schema. This socket does not carry media; it carries room snapshots, SDP offers/answers, ICE candidates, heartbeat ping/pong, slot state updates, and ICE restart requests.",
+				"operationId": "openRmsSignalingWebSocket",
 				"parameters": []any{
 					map[string]any{
-						"name":        "sessionId",
+						"name":        "token",
 						"in":          "query",
 						"required":    true,
-						"description": "Opaque session id returned by a successful join call.",
-						"schema":      map[string]any{"type": "string", "format": "uuid"},
-						"example":     "6c0656f5-50fd-4366-b2b6-394a52ca071f",
+						"description": "Short-lived RMS join token returned by a successful join call.",
+						"schema":      map[string]any{"type": "string"},
+						"example":     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
 					},
 				},
 				"responses": map[string]any{
@@ -235,7 +235,7 @@ var swaggerHTML = []byte(`<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Voice-First SFU API Swagger</title>
+  <title>Kvatum API Swagger</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>
     body { margin: 0; background: #f8fafc; }
@@ -489,16 +489,26 @@ func schemas() map[string]any {
 		"JoinResponse": map[string]any{
 			"type":                 "object",
 			"additionalProperties": false,
-			"required":             []any{"sessionId", "participantId", "roomId", "role", "wsUrl", "iceServers", "snapshot"},
+			"required":             []any{"sessionId", "participantId", "roomId", "role", "wsUrl", "rmsUrl", "joinToken", "iceServers", "snapshot"},
 			"properties": map[string]any{
-				"sessionId":     stringSchema("Opaque session id used to open /ws?sessionId=...", "6c0656f5-50fd-4366-b2b6-394a52ca071f"),
+				"sessionId":     stringSchema("Opaque realtime session id.", "6c0656f5-50fd-4366-b2b6-394a52ca071f"),
 				"participantId": stringSchema("Participant id assigned to this session.", "feb454a0-15cb-45ce-b0d5-e6c1b89c8841"),
 				"roomId":        stringSchema("Room id that was joined.", "clear-sun-37"),
 				"role":          ref("#/components/schemas/ParticipantRole"),
 				"wsUrl": map[string]any{
 					"type":        "string",
-					"description": "Absolute ws:// or wss:// signaling URL. The scheme is derived from X-Forwarded-Proto or TLS state.",
-					"example":     "wss://kvt.araik.dev/ws?sessionId=6c0656f5-50fd-4366-b2b6-394a52ca071f",
+					"description": "Legacy signaling URL kept for backward compatibility. New clients should use rmsUrl + joinToken through the RMS SDK.",
+					"example":     "wss://kvatum.ru/v1/connect?token=...",
+				},
+				"rmsUrl": map[string]any{
+					"type":        "string",
+					"description": "Public RMS base URL used by the browser SDK.",
+					"example":     "https://kvatum.ru",
+				},
+				"joinToken": map[string]any{
+					"type":        "string",
+					"description": "Short-lived server-issued token used to connect to RMS.",
+					"example":     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
 				},
 				"iceServers": map[string]any{
 					"type":        "array",

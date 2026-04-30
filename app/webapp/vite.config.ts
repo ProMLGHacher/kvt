@@ -109,6 +109,11 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
           ws: true
+        },
+        '/v1/connect': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          ws: true
         }
       }
     }

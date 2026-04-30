@@ -85,6 +85,7 @@ export default defineResource<typeof ruVoice>()({
       participants: 'Participants',
       roomInfo: 'Room info',
       techInfo: 'Tech info',
+      chat: 'Chat',
       settings: 'Settings',
       close: 'Close'
     },
@@ -132,6 +133,17 @@ export default defineResource<typeof ruVoice>()({
       noDiagnostics: 'No diagnostics yet.',
       export: 'Export',
       clear: 'Clear'
+    },
+    chat: {
+      title: 'Meeting chat',
+      empty: 'No messages yet.',
+      placeholder: 'Write a message...',
+      send: 'Send',
+      reply: 'Reply',
+      cancelReply: 'Cancel reply',
+      edited: 'edited',
+      newMessages: 'New messages',
+      today: 'Today'
     },
     status: {
       checkingRoom: 'Checking room.',

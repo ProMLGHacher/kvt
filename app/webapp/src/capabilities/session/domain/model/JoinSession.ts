@@ -37,6 +37,12 @@ export type JoinSession = {
   readonly sessionId: string
   readonly snapshot: JoinSessionSnapshot
   readonly wsUrl: string
+  readonly rmsUrl?: string
+  readonly joinToken?: string
+  readonly chatUrl?: string
+  readonly chatToken?: string
+  readonly chatSpaceId?: string
+  readonly chatChannelId?: string
 }
 
 export type StoredJoinSession = JoinSession & {

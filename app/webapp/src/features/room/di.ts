@@ -1,5 +1,12 @@
 import { Inject, Module, Provides, ViewModelProvider, createModuleFromClass } from '@kvt/core'
 import { ClearClientLogsUseCase } from '@capabilities/client-logs/domain/usecases/ClearClientLogsUseCase'
+import { ConnectChatUseCase } from '@capabilities/chat/domain/usecases/ConnectChatUseCase'
+import { DisconnectChatUseCase } from '@capabilities/chat/domain/usecases/DisconnectChatUseCase'
+import { MarkChatReadUseCase } from '@capabilities/chat/domain/usecases/MarkChatReadUseCase'
+import { ObserveChatUseCase } from '@capabilities/chat/domain/usecases/ObserveChatUseCase'
+import { SendChatMessageUseCase } from '@capabilities/chat/domain/usecases/SendChatMessageUseCase'
+import { ToggleChatReactionUseCase } from '@capabilities/chat/domain/usecases/ToggleChatReactionUseCase'
+import { UploadChatAttachmentUseCase } from '@capabilities/chat/domain/usecases/UploadChatAttachmentUseCase'
 import { ExportClientLogsUseCase } from '@capabilities/client-logs/domain/usecases/ExportClientLogsUseCase'
 import { CopyTextUseCase } from '@capabilities/clipboard/domain/usecases/CopyTextUseCase'
 import { PlayConferenceSoundUseCase } from '@capabilities/conference-audio/domain/usecases/PlayConferenceSoundUseCase'
@@ -107,7 +114,14 @@ class RoomModule {
     @Inject(ObserveVoiceActivityUseCase) observeVoiceActivity: ObserveVoiceActivityUseCase,
     @Inject(UpdateVoiceActivitySourcesUseCase)
     updateVoiceActivitySources: UpdateVoiceActivitySourcesUseCase,
-    @Inject(StopVoiceActivityUseCase) stopVoiceActivity: StopVoiceActivityUseCase
+    @Inject(StopVoiceActivityUseCase) stopVoiceActivity: StopVoiceActivityUseCase,
+    @Inject(ConnectChatUseCase) connectChat: ConnectChatUseCase,
+    @Inject(DisconnectChatUseCase) disconnectChat: DisconnectChatUseCase,
+    @Inject(ObserveChatUseCase) observeChat: ObserveChatUseCase,
+    @Inject(SendChatMessageUseCase) sendChatMessage: SendChatMessageUseCase,
+    @Inject(MarkChatReadUseCase) markChatRead: MarkChatReadUseCase,
+    @Inject(ToggleChatReactionUseCase) toggleChatReaction: ToggleChatReactionUseCase,
+    @Inject(UploadChatAttachmentUseCase) uploadChatAttachment: UploadChatAttachmentUseCase
   ) {
     return new RoomViewModel(
       loadSession,
@@ -127,7 +141,14 @@ class RoomModule {
       playConferenceSound,
       observeVoiceActivity,
       updateVoiceActivitySources,
-      stopVoiceActivity
+      stopVoiceActivity,
+      connectChat,
+      disconnectChat,
+      observeChat,
+      sendChatMessage,
+      markChatRead,
+      toggleChatReaction,
+      uploadChatAttachment
     )
   }
 }

@@ -12,19 +12,16 @@ export class BrowserMediaDeviceRepository implements MediaDeviceRepository {
 
   async listDevices(): PromiseResult<readonly MediaDevice[], MediaError> {
     if (!navigator.mediaDevices?.enumerateDevices) {
-      return ok(fallbackDevices)
+      return ok([])
     }
 
     try {
       const devices = await navigator.mediaDevices.enumerateDevices()
-      const mapped = devices.map<MediaDevice>((device) => ({
-        id: device.deviceId,
-        label: device.label || fallbackLabel(device.kind),
-        kind: mapDeviceKind(device.kind),
-        groupId: device.groupId || undefined
-      }))
+      const mapped = devices
+        .map(toMediaDevice)
+        .filter((device): device is MediaDevice => Boolean(device))
 
-      return ok(mapped.length ? mapped : fallbackDevices)
+      return ok(mapped)
     } catch (error) {
       return err(toMediaError(error))
     }
@@ -58,15 +55,23 @@ export class BrowserMediaDeviceRepository implements MediaDeviceRepository {
   }
 }
 
-const fallbackDevices: readonly MediaDevice[] = [
-  { id: 'default-microphone', kind: 'audio-input', label: 'Default microphone' },
-  { id: 'default-camera', kind: 'video-input', label: 'Default camera' }
-]
-
 function fallbackLabel(kind: MediaDeviceInfo['kind']): string {
   if (kind === 'audioinput') return 'Microphone'
   if (kind === 'videoinput') return 'Camera'
   return 'Speaker'
+}
+
+function toMediaDevice(device: MediaDeviceInfo): MediaDevice | null {
+  if (!device.deviceId || device.deviceId === 'default') {
+    return null
+  }
+
+  return {
+    id: device.deviceId,
+    label: device.label || fallbackLabel(device.kind),
+    kind: mapDeviceKind(device.kind),
+    groupId: device.groupId || undefined
+  }
 }
 
 function mapDeviceKind(kind: MediaDeviceInfo['kind']): MediaDevice['kind'] {

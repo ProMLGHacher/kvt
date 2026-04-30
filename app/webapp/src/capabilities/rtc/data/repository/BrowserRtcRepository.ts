@@ -1,5 +1,12 @@
 import { MutableStateFlow, err, ok, type PromiseResult } from '@kvt/core'
+import {
+  ConferenceClient,
+  type ConferenceDiagnostics,
+  type RoomSnapshot,
+  type SlotUpdatedPayload
+} from '@kvatum/rms-sdk'
 import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
+import { exactDeviceId } from '@capabilities/media/domain/model'
 import type {
   ConnectRtcParams,
   RtcDiagnostics,
@@ -9,8 +16,6 @@ import type {
   RtcSession
 } from '@capabilities/rtc/domain/model'
 import type { RtcRepository } from '@capabilities/rtc/domain/repository/RtcRepository'
-import { ConferenceClient, type ConferenceDiagnostics } from '../infra/conference-client'
-import type { RoomSnapshot, SlotUpdatedPayload } from '../infra/protocol'
 
 const initialSession: RtcSession = {
   roomId: '',
@@ -46,29 +51,28 @@ export class BrowserRtcRepository implements RtcRepository {
       this.audioProcessingRepository.configure(params.audioProcessing)
     }
 
-    this.client = new ConferenceClient(
-      {
-        onSnapshot: (snapshot) => this.applySnapshot(params.participantId, snapshot),
-        onSlotUpdated: (slot) => this.applySlotUpdate(slot),
-        onRemoteTrack: (participantId, kind, stream) =>
-          this.applyRemoteStream(participantId, kind, stream),
-        onRemoteStreamsReset: () => this.clearRemoteStreams(),
-        onLocalSlotStream: (kind, stream) => this.applyLocalSlotStream(kind, stream),
-        onStateChange: (state) => this.updateStatus(state),
-        onDiagnostics: (diagnostics) => this.updateDiagnostics(diagnostics),
-        onError: (message) => {
-          this.diagnosticsState.set({
-            ...(this.diagnosticsState.value ?? emptyDiagnostics()),
-            lastError: message
-          })
-        }
-      },
-      this.audioProcessingRepository
-    )
+    this.client = new ConferenceClient({
+      onSnapshot: (snapshot) => this.applySnapshot(params.participantId, snapshot),
+      onSlotUpdated: (slot) => this.applySlotUpdate(slot),
+      onRemoteTrack: (participantId, kind, stream) =>
+        this.applyRemoteStream(participantId, kind, stream),
+      onRemoteStreamsReset: () => this.clearRemoteStreams(),
+      onLocalSlotStream: (kind, stream) => this.applyLocalSlotStream(kind, stream),
+      onStateChange: (state) => this.updateStatus(state),
+      onDiagnostics: (diagnostics) => this.updateDiagnostics(diagnostics),
+      onError: (message) => {
+        this.diagnosticsState.set({
+          ...(this.diagnosticsState.value ?? emptyDiagnostics()),
+          lastError: message
+        })
+      }
+    })
 
     try {
       await this.client.start({
         wsUrl: params.wsUrl,
+        rmsUrl: params.rmsUrl,
+        joinToken: params.joinToken,
         iceServers: params.iceServers.map((server) => ({
           urls: [...server.urls],
           username: server.username,
@@ -76,7 +80,8 @@ export class BrowserRtcRepository implements RtcRepository {
         })),
         micEnabled: params.micEnabled,
         cameraEnabled: params.cameraEnabled,
-        microphoneDeviceId: params.microphoneDeviceId
+        microphoneDeviceId: params.microphoneDeviceId,
+        createMicrophoneStream: (streamParams) => this.createProcessedMicrophoneStream(streamParams)
       })
       return ok()
     } catch (error) {
@@ -86,6 +91,7 @@ export class BrowserRtcRepository implements RtcRepository {
 
   disconnect(): void {
     this.client?.close()
+    this.audioProcessingRepository.release('rtc-microphone')
     this.client = null
     this.sessionState.update((session) => ({
       ...session,
@@ -271,6 +277,27 @@ export class BrowserRtcRepository implements RtcRepository {
       recentSignalsReceived: diagnostics.recentSignalsReceived,
       lastError: diagnostics.lastError
     })
+  }
+
+  private async createProcessedMicrophoneStream({
+    microphoneDeviceId
+  }: {
+    microphoneDeviceId?: string | null
+  }): Promise<MediaStream> {
+    const rawStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        deviceId: exactDeviceId(microphoneDeviceId),
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      },
+      video: false
+    })
+    const processed = await this.audioProcessingRepository.createProcessedMicrophoneStream({
+      owner: 'rtc-microphone',
+      rawStream
+    })
+    return processed.ok ? processed.value : rawStream
   }
 }
 

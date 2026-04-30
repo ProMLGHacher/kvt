@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next'
 import type { RoomPanel } from '../model/RoomState'
 import { SettingsIcon } from '@features/settings/presentation/view/SettingsModal'
 import { BottomDock } from './BottomDock'
-import { CodeIcon, CopyIcon, IconButton, InfoIcon, ParticipantsIcon } from './room-icons'
+import { ChatIcon, CodeIcon, CopyIcon, IconButton, InfoIcon, ParticipantsIcon } from './room-icons'
 
 type VoiceT = TFunction<'voice'>
 
@@ -68,6 +68,13 @@ export function RoomBottomChrome({
 
       <div className="pointer-events-auto flex justify-center md:items-center md:justify-end">
         <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/88 p-2 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+          <IconButton
+            active={activePanel === 'chat'}
+            label={t('room.panels.chat')}
+            onClick={() => onPanelToggle('chat')}
+          >
+            <ChatIcon />
+          </IconButton>
           <IconButton
             active={activePanel === 'participants'}
             label={t('room.panels.participants')}

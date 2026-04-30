@@ -3,8 +3,6 @@ import { ConfigureAudioProcessingUseCase } from '@capabilities/audio-processing/
 import { ObserveAudioProcessingUseCase } from '@capabilities/audio-processing/domain/usecases/ObserveAudioProcessingUseCase'
 import { ListMediaDevicesUseCase } from '@capabilities/media/domain/usecases/ListMediaDevicesUseCase'
 import { ObserveLocalMediaUseCase } from '@capabilities/media/domain/usecases/ObserveLocalMediaUseCase'
-import { SetCameraEnabledUseCase } from '@capabilities/media/domain/usecases/SetCameraEnabledUseCase'
-import { SetMicrophoneEnabledUseCase } from '@capabilities/media/domain/usecases/SetMicrophoneEnabledUseCase'
 import { StartLocalPreviewUseCase } from '@capabilities/media/domain/usecases/StartLocalPreviewUseCase'
 import { StopLocalPreviewUseCase } from '@capabilities/media/domain/usecases/StopLocalPreviewUseCase'
 import { GetUserPreferencesUseCase } from '@capabilities/user-preferences/domain/usecases/GetUserPreferencesUseCase'
@@ -26,8 +24,6 @@ class SettingsModule {
     @Inject(ObserveLocalMediaUseCase) observeMedia: ObserveLocalMediaUseCase,
     @Inject(StartLocalPreviewUseCase) startPreview: StartLocalPreviewUseCase,
     @Inject(StopLocalPreviewUseCase) stopPreview: StopLocalPreviewUseCase,
-    @Inject(SetMicrophoneEnabledUseCase) setMicrophoneEnabled: SetMicrophoneEnabledUseCase,
-    @Inject(SetCameraEnabledUseCase) setCameraEnabled: SetCameraEnabledUseCase,
     @Inject(ConfigureAudioProcessingUseCase)
     configureAudioProcessing: ConfigureAudioProcessingUseCase,
     @Inject(ObserveAudioProcessingUseCase) observeAudioProcessing: ObserveAudioProcessingUseCase,
@@ -45,8 +41,6 @@ class SettingsModule {
       observeMedia,
       startPreview,
       stopPreview,
-      setMicrophoneEnabled,
-      setCameraEnabled,
       configureAudioProcessing,
       observeAudioProcessing,
       saveDisplayName,

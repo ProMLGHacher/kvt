@@ -10,8 +10,7 @@ import type { JoinRoomFlowUseCase } from '@features/prejoin/domain/usecases/Join
 import type { LoadPrejoinContextUseCase } from '@features/prejoin/domain/usecases/LoadPrejoinContextUseCase'
 import type { StartPrejoinPreviewUseCase } from '@features/prejoin/domain/usecases/StartPrejoinPreviewUseCase'
 import type { ObserveLocalMediaUseCase } from '@capabilities/media/domain/usecases/ObserveLocalMediaUseCase'
-import type { SetMicrophoneEnabledUseCase } from '@capabilities/media/domain/usecases/SetMicrophoneEnabledUseCase'
-import type { SetCameraEnabledUseCase } from '@capabilities/media/domain/usecases/SetCameraEnabledUseCase'
+import type { ListMediaDevicesUseCase } from '@capabilities/media/domain/usecases/ListMediaDevicesUseCase'
 
 type PrejoinContextError = 'room-not-found' | 'media-unavailable' | 'unknown-error'
 
@@ -37,8 +36,6 @@ export class PrejoinViewModel extends ViewModel {
   // Нужны, чтобы старый async-ответ не перезаписал новое состояние.
   private configureRoomRequestId = 0
   private startPreviewRequestId = 0
-  private microphoneRequestId = 0
-  private cameraRequestId = 0
 
   // Храним отдельно, потому что в UiState нет отдельного флага загрузки preview.
   private previewStarting = false
@@ -50,8 +47,7 @@ export class PrejoinViewModel extends ViewModel {
     private readonly loadPrejoinContextUseCase: LoadPrejoinContextUseCase,
     private readonly startPrejoinPreviewUseCase: StartPrejoinPreviewUseCase,
     private readonly observeLocalMediaUseCase: ObserveLocalMediaUseCase,
-    private readonly setMicrophoneEnabledUseCase: SetMicrophoneEnabledUseCase,
-    private readonly setCameraEnabledUseCase: SetCameraEnabledUseCase,
+    private readonly listMediaDevicesUseCase: ListMediaDevicesUseCase,
     private readonly joinRoomFlowUseCase: JoinRoomFlowUseCase
   ) {
     super()
@@ -176,8 +172,6 @@ export class PrejoinViewModel extends ViewModel {
   }
 
   private async updateMicrophone(enabled: boolean) {
-    const requestId = ++this.microphoneRequestId
-
     this.updateState((state) => ({
       ...state,
       micEnabled: enabled,
@@ -189,37 +183,12 @@ export class PrejoinViewModel extends ViewModel {
         : state.preview
     }))
 
-    const result = await this.setMicrophoneEnabledUseCase.execute(enabled)
-
-    if (!this.isActualMicrophoneRequest(requestId)) {
-      return
-    }
-
-    if (result.ok) {
-      return
-    }
-
-    const message = mediaErrorMessage(result.error.type)
-
-    this.updateState((state) => ({
-      ...state,
-      error: message,
-      // При ошибке считаем микрофон выключенным, а не откатываем в старое значение.
-      micEnabled: false,
-      preview: state.preview
-        ? {
-            ...state.preview,
-            micEnabled: false
-          }
-        : state.preview
-    }))
-
-    this.effects.emit({ type: 'preview-failed', message })
+    // Toggle пересобирает preview из selected*Id во ViewModel.
+    // Иначе "По умолчанию" может подхватить старый exact deviceId из media-state.
+    await this.startPreview()
   }
 
   private async updateCamera(enabled: boolean) {
-    const requestId = ++this.cameraRequestId
-
     this.updateState((state) => ({
       ...state,
       cameraEnabled: enabled,
@@ -233,34 +202,9 @@ export class PrejoinViewModel extends ViewModel {
         : state.preview
     }))
 
-    const result = await this.setCameraEnabledUseCase.execute(enabled)
-
-    if (!this.isActualCameraRequest(requestId)) {
-      return
-    }
-
-    if (result.ok) {
-      return
-    }
-
-    const message = mediaErrorMessage(result.error.type)
-
-    this.updateState((state) => ({
-      ...state,
-      error: message,
-      // При ошибке считаем камеру выключенной, потому что включить её не удалось.
-      cameraEnabled: false,
-      preview: state.preview
-        ? {
-            ...state.preview,
-            cameraEnabled: false,
-            previewAvailable: false,
-            status: 'idle'
-          }
-        : state.preview
-    }))
-
-    this.effects.emit({ type: 'preview-failed', message })
+    // Toggle пересобирает preview из selected*Id во ViewModel.
+    // Иначе "По умолчанию" может подхватить старый exact deviceId из media-state.
+    await this.startPreview()
   }
 
   private async selectMicrophone(deviceId: string | null) {
@@ -387,6 +331,7 @@ export class PrejoinViewModel extends ViewModel {
     }
 
     if (result.ok) {
+      await this.refreshDevices()
       this.updateState((current) => ({
         ...current,
         error: null
@@ -431,6 +376,18 @@ export class PrejoinViewModel extends ViewModel {
     })
   }
 
+  private async refreshDevices() {
+    const devices = await this.listMediaDevicesUseCase.execute()
+    if (!devices.ok) {
+      return
+    }
+
+    this.updateState((state) => ({
+      ...state,
+      devices: devices.value
+    }))
+  }
+
   private canJoin(state: PrejoinUiState): boolean {
     const hasDisplayName = state.displayName.value.trim().length > 0
     const mediaReady = this.isMediaReadyToJoin(state)
@@ -464,14 +421,6 @@ export class PrejoinViewModel extends ViewModel {
 
   private isActualStartPreviewRequest(requestId: number): boolean {
     return requestId === this.startPreviewRequestId
-  }
-
-  private isActualMicrophoneRequest(requestId: number): boolean {
-    return requestId === this.microphoneRequestId
-  }
-
-  private isActualCameraRequest(requestId: number): boolean {
-    return requestId === this.cameraRequestId
   }
 }
 

@@ -10,6 +10,7 @@ import { ConferenceStage } from './ConferenceStage'
 import { RoomBottomChrome } from './RoomBottomChrome'
 import { RoomErrorState } from './RoomErrorState'
 import { RoomFloatingPanel } from './RoomFloatingPanel'
+import { RoomChatPanel } from './chat/RoomChatPanel'
 import { downloadTextFile } from './download-text-file'
 
 export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): ReactNode {
@@ -50,7 +51,7 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
         />
       ) : (
         <>
-          <div className="grid min-h-0 flex-1 pb-8">
+          <div className="grid min-h-0 flex-1 gap-3 pb-8 transition-[grid-template-columns] duration-300 lg:grid-cols-[minmax(0,1fr)_auto]">
             <ConferenceStage
               key={`stage:${roomId}`}
               localMediaStreams={uiState.localMediaStreams}
@@ -62,10 +63,29 @@ export function RoomPage({ _vm = RoomViewModel }: PropsWithVM<RoomViewModel>): R
               t={t}
               onPin={(tileId) => viewModel.onEvent({ type: 'tile-pin-toggled', tileId })}
             />
+            {uiState.chat.open && (
+              <RoomChatPanel
+                chat={uiState.chat}
+                localParticipantId={uiState.localParticipantId}
+                t={t}
+                onDraftChange={(value) => viewModel.onEvent({ type: 'chat-draft-changed', value })}
+                onReaction={(messageId, emoji) =>
+                  viewModel.onEvent({ type: 'chat-reaction-toggled', messageId, emoji })
+                }
+                onReply={(messageId) =>
+                  viewModel.onEvent({ type: 'chat-reply-started', messageId })
+                }
+                onReplyCancel={() => viewModel.onEvent({ type: 'chat-reply-cancelled' })}
+                onSend={() => viewModel.onEvent({ type: 'chat-message-sent' })}
+                onFileSelected={(file) =>
+                  viewModel.onEvent({ type: 'chat-file-selected', file })
+                }
+              />
+            )}
           </div>
 
           <RoomFloatingPanel
-            activePanel={uiState.activePanel}
+            activePanel={uiState.activePanel === 'chat' ? null : uiState.activePanel}
             actionStatus={uiState.actionStatus}
             diagnostics={uiState.diagnostics}
             participantCount={uiState.participants.length}

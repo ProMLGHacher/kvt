@@ -1,9 +1,72 @@
 services:
-  backend:
+  main-server:
     build:
       context: ../backend
       dockerfile: Dockerfile.dev
     working_dir: /workspace
+    command: ['go', 'run', './cmd/main-server']
+    volumes:
+      - ../backend:/workspace
+      - backend_go_mod_cache:/go/pkg/mod
+      - backend_go_build_cache:/root/.cache/go-build
+
+  chat-server:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    working_dir: /workspace
+    command: ['go', 'run', './cmd/chat-server']
+    environment:
+      HTTP_ADDR: ':8080'
+      CHAT_PUBLIC_URL: '${CHAT_PUBLIC_URL:-http://localhost:8023/chat}'
+      CHAT_ADMIN_API_KEY: '${CHAT_ADMIN_API_KEY:-local-chat-admin-key}'
+      CHAT_JOIN_SECRET: '${CHAT_JOIN_SECRET:-local-chat-join-secret}'
+      CHAT_STORAGE: '${CHAT_STORAGE:-postgres}'
+      CHAT_AUTO_MIGRATE: '${CHAT_AUTO_MIGRATE:-true}'
+      CHAT_POSTGRES_DSN: '${CHAT_POSTGRES_DSN:-postgres://kvatum:kvatum@postgres:5432/kvatum_chat?sslmode=disable}'
+      CHAT_REDIS_URL: '${CHAT_REDIS_URL:-redis://redis:6379/0}'
+      CHAT_KAFKA_BROKERS: '${CHAT_KAFKA_BROKERS:-redpanda:9092}'
+      CHAT_S3_ENDPOINT: '${CHAT_S3_ENDPOINT:-http://localhost:9000}'
+      CHAT_S3_BUCKET: '${CHAT_S3_BUCKET:-kvatum-chat}'
+      CHAT_S3_ACCESS_KEY: '${CHAT_S3_ACCESS_KEY:-kvatum}'
+      CHAT_S3_SECRET_KEY: '${CHAT_S3_SECRET_KEY:-kvatum-secret}'
+      CHAT_S3_PUBLIC_BASE_URL: '${CHAT_S3_PUBLIC_BASE_URL:-http://localhost:9000/kvatum-chat}'
+    depends_on:
+      redpanda:
+        condition: service_started
+    volumes:
+      - ../backend:/workspace
+      - backend_go_mod_cache:/go/pkg/mod
+      - backend_go_build_cache:/root/.cache/go-build
+
+  chat-worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    working_dir: /workspace
+    command: ['go', 'run', './cmd/chat-worker']
+    environment:
+      CHAT_POSTGRES_DSN: '${CHAT_POSTGRES_DSN:-postgres://kvatum:kvatum@postgres:5432/kvatum_chat?sslmode=disable}'
+      CHAT_REDIS_URL: '${CHAT_REDIS_URL:-redis://redis:6379/0}'
+      CHAT_KAFKA_BROKERS: '${CHAT_KAFKA_BROKERS:-redpanda:9092}'
+      CHAT_S3_ENDPOINT: '${CHAT_S3_ENDPOINT:-http://localhost:9000}'
+      CHAT_S3_BUCKET: '${CHAT_S3_BUCKET:-kvatum-chat}'
+      CHAT_S3_ACCESS_KEY: '${CHAT_S3_ACCESS_KEY:-kvatum}'
+      CHAT_S3_SECRET_KEY: '${CHAT_S3_SECRET_KEY:-kvatum-secret}'
+    depends_on:
+      redpanda:
+        condition: service_started
+    volumes:
+      - ../backend:/workspace
+      - backend_go_mod_cache:/go/pkg/mod
+      - backend_go_build_cache:/root/.cache/go-build
+
+  rms:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.dev
+    working_dir: /workspace
+    command: ['go', 'run', './cmd/rms-server']
     volumes:
       - ../backend:/workspace
       - backend_go_mod_cache:/go/pkg/mod
@@ -30,6 +93,8 @@ services:
         npm run build -w @kvt/core &&
         npm run build -w @kvt/react &&
         npm run build -w @kvt/theme &&
+        npm run build -w @kvatum/rms-sdk &&
+        npm run build -w @kvatum/chat-sdk &&
         (npm run watch -w @kvt/core &) &&
         (npm run watch -w @kvt/react &) &&
         (npm run watch -w @kvt/theme &) &&
@@ -48,6 +113,69 @@ services:
     volumes:
       - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
 
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: kvatum_chat
+      POSTGRES_USER: kvatum
+      POSTGRES_PASSWORD: kvatum
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:8-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+
+  redpanda:
+    image: redpandadata/redpanda:v25.3.1
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - '1'
+      - --memory
+      - 512M
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - '0'
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    networks:
+      - app
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: kvatum
+      MINIO_ROOT_PASSWORD: kvatum-secret
+    volumes:
+      - minio_data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -lc
+      - >
+        until mc alias set local http://minio:9000 kvatum kvatum-secret; do sleep 1; done &&
+        mc mb --ignore-existing local/kvatum-chat &&
+        printf '[{"AllowedOrigins":["*"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag"],"MaxAgeSeconds":3000}]' > /tmp/cors.json &&
+        mc cors set local/kvatum-chat /tmp/cors.json || true &&
+        mc anonymous set download local/kvatum-chat
+
 volumes:
   backend_go_mod_cache:
   backend_go_build_cache:
@@ -56,3 +184,6 @@ volumes:
   app_kvt_react_dist:
   app_kvt_theme_dist:
   app_webapp_node_modules:
+  postgres_data:
+  redis_data:
+  minio_data:

@@ -16,6 +16,12 @@ export type JoinRoomResult = {
   sessionId: string
   snapshot: JoinRoomSnapshot
   wsUrl: string
+  rmsUrl?: string
+  joinToken?: string
+  chatUrl?: string
+  chatToken?: string
+  chatSpaceId?: string
+  chatChannelId?: string
 }
 
 export type JoinRoomError = { type: 'unknown-error' } | { type: 'room-not-found' }

@@ -1,8 +1,6 @@
 import { Inject, Module, Provides, ViewModelProvider, createModuleFromClass } from '@kvt/core'
 import { ListMediaDevicesUseCase } from '@capabilities/media/domain/usecases/ListMediaDevicesUseCase'
 import { ObserveLocalMediaUseCase } from '@capabilities/media/domain/usecases/ObserveLocalMediaUseCase'
-import { SetCameraEnabledUseCase } from '@capabilities/media/domain/usecases/SetCameraEnabledUseCase'
-import { SetMicrophoneEnabledUseCase } from '@capabilities/media/domain/usecases/SetMicrophoneEnabledUseCase'
 import { StartLocalPreviewUseCase } from '@capabilities/media/domain/usecases/StartLocalPreviewUseCase'
 import { GetUserPreferencesUseCase } from '@capabilities/user-preferences/domain/usecases/GetUserPreferencesUseCase'
 import { SaveDefaultCameraEnabledUseCase } from '@capabilities/user-preferences/domain/usecases/SaveDefaultCameraEnabledUseCase'
@@ -63,18 +61,10 @@ class PrejoinModule {
     @Inject(LoadPrejoinContextUseCase) loadContext: LoadPrejoinContextUseCase,
     @Inject(StartPrejoinPreviewUseCase) startPreview: StartPrejoinPreviewUseCase,
     @Inject(ObserveLocalMediaUseCase) observeMedia: ObserveLocalMediaUseCase,
-    @Inject(SetMicrophoneEnabledUseCase) setMicrophoneEnabled: SetMicrophoneEnabledUseCase,
-    @Inject(SetCameraEnabledUseCase) setCameraEnabled: SetCameraEnabledUseCase,
+    @Inject(ListMediaDevicesUseCase) listDevices: ListMediaDevicesUseCase,
     @Inject(JoinRoomFlowUseCase) joinRoom: JoinRoomFlowUseCase
   ) {
-    return new PrejoinViewModel(
-      loadContext,
-      startPreview,
-      observeMedia,
-      setMicrophoneEnabled,
-      setCameraEnabled,
-      joinRoom
-    )
+    return new PrejoinViewModel(loadContext, startPreview, observeMedia, listDevices, joinRoom)
   }
 }
 

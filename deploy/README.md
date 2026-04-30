@@ -10,7 +10,14 @@ This directory contains both Docker contours for the project.
 ## Services
 
 - `nginx` - the only host-exposed gateway, published on `8023`.
-- `backend` - Go API, signaling, and SFU process, internal-only in the Docker network.
+- `main-server` - product HTTP API, internal-only in the Docker network.
+- `rms` - Realtime Media Service: signaling, WebRTC routing and volatile realtime state.
+- `chat-server` - Kvatum Chat Service: chat rooms, messages, reactions and chat WebSocket fanout.
+- `chat-worker` - async attachment and link-preview worker process.
+- `postgres` - default Chat Service persistence dependency.
+- `redis` - chat cache/presence/rate-limit dependency.
+- `kafka` in prod / `redpanda` in dev - chat async event broker.
+- `minio` - S3-compatible attachment storage for local and production-like runs.
 - `web` - production static build in prod contour, Vite dev server in dev contour.
 - `turn` - coturn for browser relay traffic.
 
@@ -45,7 +52,8 @@ npm run stack:prod:down
 
 - `nginx` remains the only HTTP entrypoint on the host.
 - In dev, nginx proxies `/` to Vite on port `5173`, so frontend changes reload without rebuilding.
-- For local WebRTC media checks, the stack also publishes backend UDP ICE ports and TURN relay ports. Without those extra ports, local audio/video validation would not be realistic.
-- The frontend uses same-origin requests through `nginx`, so `/api` and `/ws` are reverse-proxied to the backend.
+- For local WebRTC media checks, the stack also publishes RMS UDP ICE ports and TURN relay ports. Without those extra ports, local audio/video validation would not be realistic.
+- The frontend uses same-origin requests through `nginx`, so `/api` is reverse-proxied to main-server, `/v1/connect` is reverse-proxied to RMS, and `/chat/*` is reverse-proxied to Chat Service.
 - The TURN service is configured for local development and should be replaced with real certificates and a public `external-ip` in production.
-- The backend is single-node and in-memory by design for v1.
+- main-server and RMS still keep v1 runtime state in process memory.
+- Chat Service defaults to `CHAT_STORAGE=postgres`; use `CHAT_STORAGE=inmemory` only for tests/dev fallback.

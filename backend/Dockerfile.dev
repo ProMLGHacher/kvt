@@ -1,6 +1,6 @@
 FROM golang:1.26-alpine
 
-RUN apk add --no-cache git wget
+RUN apk add --no-cache git wget ffmpeg
 RUN go install github.com/air-verse/air@v1.62.0
 
 WORKDIR /workspace

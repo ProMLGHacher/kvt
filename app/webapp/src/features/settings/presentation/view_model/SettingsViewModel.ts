@@ -19,8 +19,6 @@ import type { SavePreferredCameraUseCase } from '@capabilities/user-preferences/
 import type { SavePreferredMicrophoneUseCase } from '@capabilities/user-preferences/domain/usecases/SavePreferredMicrophoneUseCase'
 import type { ListMediaDevicesUseCase } from '@capabilities/media/domain/usecases/ListMediaDevicesUseCase'
 import type { ObserveLocalMediaUseCase } from '@capabilities/media/domain/usecases/ObserveLocalMediaUseCase'
-import type { SetCameraEnabledUseCase } from '@capabilities/media/domain/usecases/SetCameraEnabledUseCase'
-import type { SetMicrophoneEnabledUseCase } from '@capabilities/media/domain/usecases/SetMicrophoneEnabledUseCase'
 import type { StartLocalPreviewUseCase } from '@capabilities/media/domain/usecases/StartLocalPreviewUseCase'
 import type { StopLocalPreviewUseCase } from '@capabilities/media/domain/usecases/StopLocalPreviewUseCase'
 import {
@@ -48,8 +46,6 @@ export class SettingsViewModel extends ViewModel {
     private readonly observeLocalMediaUseCase: ObserveLocalMediaUseCase,
     private readonly startLocalPreviewUseCase: StartLocalPreviewUseCase,
     private readonly stopLocalPreviewUseCase: StopLocalPreviewUseCase,
-    private readonly setMicrophoneEnabledUseCase: SetMicrophoneEnabledUseCase,
-    private readonly setCameraEnabledUseCase: SetCameraEnabledUseCase,
     private readonly configureAudioProcessingUseCase: ConfigureAudioProcessingUseCase,
     private readonly observeAudioProcessingUseCase: ObserveAudioProcessingUseCase,
     private readonly saveDisplayNameUseCase: SaveDisplayNameUseCase,
@@ -200,9 +196,10 @@ export class SettingsViewModel extends ViewModel {
     this.updateState((state) => ({ ...state, micEnabled: enabled }))
     this.saveDefaultMicEnabledUseCase.execute(enabled)
 
-    const result = await this.setMicrophoneEnabledUseCase.execute(enabled)
-    if (!result.ok) {
-      this.handleMediaError(result.error)
+    if (this.isPreviewTabActive()) {
+      // Toggle пересобирает preview из selected*Id во ViewModel.
+      // Для "По умолчанию" это важно: в media-state может жить старый exact deviceId.
+      await this.startPreview()
     }
   }
 
@@ -210,16 +207,17 @@ export class SettingsViewModel extends ViewModel {
     this.updateState((state) => ({ ...state, cameraEnabled: enabled }))
     this.saveDefaultCameraEnabledUseCase.execute(enabled)
 
-    const result = await this.setCameraEnabledUseCase.execute(enabled)
-    if (!result.ok) {
-      this.handleMediaError(result.error)
+    if (this.isPreviewTabActive()) {
+      // Toggle пересобирает preview из selected*Id во ViewModel.
+      // Для "По умолчанию" это важно: в media-state может жить старый exact deviceId.
+      await this.startPreview()
     }
   }
 
   private async selectMicrophone(deviceId: string | null) {
     this.updateState((state) => ({ ...state, selectedMicrophoneId: deviceId }))
     this.savePreferredMicrophoneUseCase.execute(deviceId)
-    if (this.isPreviewTabActive() && !this.state.value.preview?.stream) {
+    if (this.isPreviewTabActive()) {
       await this.startPreview()
     }
   }
@@ -343,11 +341,28 @@ export class SettingsViewModel extends ViewModel {
       audioProcessing: state.audioProcessing
     })
 
-    if (requestId !== this.previewRequestId || result.ok) {
+    if (requestId !== this.previewRequestId) {
+      return
+    }
+
+    if (result.ok) {
+      await this.refreshDevices()
       return
     }
 
     this.handleMediaError(result.error)
+  }
+
+  private async refreshDevices() {
+    const devices = await this.listMediaDevicesUseCase.execute()
+    if (!devices.ok) {
+      return
+    }
+
+    this.updateState((state) => ({
+      ...state,
+      devices: devices.value
+    }))
   }
 
   private handleMediaError(error: MediaError) {

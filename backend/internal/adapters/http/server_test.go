@@ -290,7 +290,7 @@ func TestSwaggerAndOpenAPIEndpoints(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected openapi paths object")
 	}
-	for _, path := range []string{"/api/rooms", "/api/rooms/{roomId}", "/api/rooms/{roomId}/join", "/ws"} {
+	for _, path := range []string{"/api/rooms", "/api/rooms/{roomId}", "/api/rooms/{roomId}/join", "/v1/connect"} {
 		if _, exists := paths[path]; !exists {
 			t.Fatalf("expected openapi path %s to be documented", path)
 		}

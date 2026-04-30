@@ -4,6 +4,13 @@ import type { PlayConferenceSoundUseCase } from '@capabilities/conference-audio/
 import type { ObserveVoiceActivityUseCase } from '@capabilities/voice-activity/domain/usecases/ObserveVoiceActivityUseCase'
 import type { StopVoiceActivityUseCase } from '@capabilities/voice-activity/domain/usecases/StopVoiceActivityUseCase'
 import type { UpdateVoiceActivitySourcesUseCase } from '@capabilities/voice-activity/domain/usecases/UpdateVoiceActivitySourcesUseCase'
+import type { ConnectChatUseCase } from '@capabilities/chat/domain/usecases/ConnectChatUseCase'
+import type { DisconnectChatUseCase } from '@capabilities/chat/domain/usecases/DisconnectChatUseCase'
+import type { MarkChatReadUseCase } from '@capabilities/chat/domain/usecases/MarkChatReadUseCase'
+import type { ObserveChatUseCase } from '@capabilities/chat/domain/usecases/ObserveChatUseCase'
+import type { SendChatMessageUseCase } from '@capabilities/chat/domain/usecases/SendChatMessageUseCase'
+import type { ToggleChatReactionUseCase } from '@capabilities/chat/domain/usecases/ToggleChatReactionUseCase'
+import type { UploadChatAttachmentUseCase } from '@capabilities/chat/domain/usecases/UploadChatAttachmentUseCase'
 import type { RtcDiagnostics, RtcSession } from '@capabilities/rtc/domain/model'
 import type { ConnectToRoomRtcUseCase } from '@capabilities/rtc/domain/usecases/ConnectToRoomRtcUseCase'
 import type { LoadJoinSessionUseCase } from '@capabilities/session/domain/usecases/LoadJoinSessionUseCase'
@@ -83,7 +90,14 @@ export class RoomViewModel extends ViewModel {
     private readonly playConferenceSoundUseCase: PlayConferenceSoundUseCase,
     private readonly observeVoiceActivityUseCase: ObserveVoiceActivityUseCase,
     private readonly updateVoiceActivitySourcesUseCase: UpdateVoiceActivitySourcesUseCase,
-    private readonly stopVoiceActivityUseCase: StopVoiceActivityUseCase
+    private readonly stopVoiceActivityUseCase: StopVoiceActivityUseCase,
+    private readonly connectChatUseCase: ConnectChatUseCase,
+    private readonly disconnectChatUseCase: DisconnectChatUseCase,
+    private readonly observeChatUseCase: ObserveChatUseCase,
+    private readonly sendChatMessageUseCase: SendChatMessageUseCase,
+    private readonly markChatReadUseCase: MarkChatReadUseCase,
+    private readonly toggleChatReactionUseCase: ToggleChatReactionUseCase,
+    private readonly uploadChatAttachmentUseCase: UploadChatAttachmentUseCase
   ) {
     super()
   }
@@ -106,6 +120,21 @@ export class RoomViewModel extends ViewModel {
         this.latestDiagnostics = diagnostics
 
         this.updateState((state) => this.withDiagnostics(state, null))
+      })
+    )
+
+    disposables.add(
+      this.observeChatUseCase.execute().subscribe((chat) => {
+        this.updateState((state) => ({
+          ...state,
+          chat: {
+            ...state.chat,
+            status: chat.status,
+            messages: chat.messages,
+            unreadCount: chat.unreadCount,
+            error: chat.lastError
+          }
+        }))
       })
     )
 
@@ -156,11 +185,22 @@ export class RoomViewModel extends ViewModel {
       case 'panel-toggled':
         this.updateState((state) => ({
           ...state,
-          activePanel: state.activePanel === event.panel ? null : event.panel
+          activePanel: state.activePanel === event.panel ? null : event.panel,
+          chat: {
+            ...state.chat,
+            open: event.panel === 'chat' ? state.activePanel !== 'chat' : state.chat.open
+          }
         }))
+        if (event.panel === 'chat') {
+          void this.markLatestChatMessageRead()
+        }
         break
       case 'panel-closed':
-        this.updateState((state) => ({ ...state, activePanel: null }))
+        this.updateState((state) => ({
+          ...state,
+          activePanel: null,
+          chat: { ...state.chat, open: false }
+        }))
         break
       case 'tile-pin-toggled':
         this.updateState((state) => ({
@@ -173,6 +213,27 @@ export class RoomViewModel extends ViewModel {
         break
       case 'settings-closed':
         this.updateState((state) => ({ ...state, settingsOpen: false }))
+        break
+      case 'chat-draft-changed':
+        this.updateState((state) => ({ ...state, chat: { ...state.chat, draft: event.value } }))
+        break
+      case 'chat-message-sent':
+        void this.sendChatMessage()
+        break
+      case 'chat-file-selected':
+        void this.uploadChatAttachment(event.file)
+        break
+      case 'chat-reaction-toggled':
+        void this.toggleChatReactionUseCase.execute(event.messageId, event.emoji)
+        break
+      case 'chat-reply-started':
+        this.updateState((state) => ({
+          ...state,
+          chat: { ...state.chat, replyToId: event.messageId }
+        }))
+        break
+      case 'chat-reply-cancelled':
+        this.updateState((state) => ({ ...state, chat: { ...state.chat, replyToId: null } }))
         break
       default:
         throw new Error(`Unknown event: ${JSON.stringify(event)}`)
@@ -200,6 +261,7 @@ export class RoomViewModel extends ViewModel {
     this.latestDiagnostics = null
     this.lastConferenceSoundParticipants = null
     this.stopVoiceActivityUseCase.execute()
+    this.disconnectChatUseCase.execute()
 
     this.updateState((state) => this.createOpeningRoomState(state, normalizedRoomId))
 
@@ -409,6 +471,8 @@ export class RoomViewModel extends ViewModel {
       roomId: session.roomId,
       participantId: session.participantId,
       wsUrl: session.wsUrl,
+      rmsUrl: session.rmsUrl,
+      joinToken: session.joinToken,
       iceServers: session.iceServers,
       micEnabled: hasEnabledSlot(session.snapshot.participants, session.participantId, 'audio'),
       cameraEnabled: hasEnabledSlot(session.snapshot.participants, session.participantId, 'camera'),
@@ -464,6 +528,24 @@ export class RoomViewModel extends ViewModel {
       return
     }
 
+    if (session.chatUrl && session.chatToken && session.chatChannelId) {
+      const chatResult = await this.connectChatUseCase.execute({
+        chatUrl: session.chatUrl,
+        chatToken: session.chatToken,
+        chatChannelId: session.chatChannelId
+      })
+
+      if (!chatResult.ok) {
+        this.updateState((state) => ({
+          ...state,
+          chat: {
+            ...state.chat,
+            error: chatResult.error.message ?? chatResult.error.type
+          }
+        }))
+      }
+    }
+
     this.updateState((state) => ({
       ...state,
       participants: session.snapshot.participants as Participant[],
@@ -502,9 +584,74 @@ export class RoomViewModel extends ViewModel {
 
     this.leaveRoomUseCase.execute()
     this.stopVoiceActivityUseCase.execute()
+    this.disconnectChatUseCase.execute()
     await this.clearJoinSessionUseCase.execute(roomId)
 
     this.effects.emit({ type: 'navigate-home' })
+  }
+
+  private async sendChatMessage() {
+    const chat = this.state.value.chat
+    const markdown = chat.draft.trim()
+    if (!markdown) {
+      return
+    }
+
+    this.updateState((state) => ({
+      ...state,
+      chat: { ...state.chat, draft: '', replyToId: null, pendingAttachments: [] }
+    }))
+
+    const result = await this.sendChatMessageUseCase.execute({
+      markdown,
+      replyToId: chat.replyToId,
+      attachments: chat.pendingAttachments
+    })
+
+    if (!result.ok) {
+      this.updateState((state) => ({
+        ...state,
+        chat: {
+          ...state.chat,
+          draft: markdown,
+          error: result.error.message ?? result.error.type
+        }
+      }))
+      return
+    }
+
+    await this.markLatestChatMessageRead()
+  }
+
+  private async uploadChatAttachment(file: File) {
+    const result = await this.uploadChatAttachmentUseCase.execute({ file })
+    if (!result.ok) {
+      this.updateState((state) => ({
+        ...state,
+        chat: { ...state.chat, error: result.error.message ?? result.error.type }
+      }))
+      return
+    }
+    this.updateState((state) => ({
+      ...state,
+      chat: {
+        ...state.chat,
+        pendingAttachments: [...state.chat.pendingAttachments, result.value],
+        error: null
+      }
+    }))
+  }
+
+  private async markLatestChatMessageRead() {
+    const latest = this.state.value.chat.messages.at(-1)
+    if (!latest) {
+      return
+    }
+    await this.markChatReadUseCase.execute(latest.id)
+    this.updateState((state) => ({
+      ...state,
+      chat: { ...state.chat, lastReadMessageId: latest.id, unreadCount: 0 }
+    }))
   }
 
   private applyObservedSession(state: RoomUiState, session: RtcSession): RoomUiState {
@@ -594,6 +741,17 @@ export class RoomViewModel extends ViewModel {
       activePanel: null,
       pinnedTileId: null,
       speakingParticipantIds: [],
+      chat: {
+        ...state.chat,
+        open: false,
+        draft: '',
+        messages: [],
+        unreadCount: 0,
+        lastReadMessageId: null,
+        replyToId: null,
+        error: null,
+        status: 'idle'
+      },
       actionStatus: 'room.status.checkingRoom',
       diagnostics: null,
       microphone: {

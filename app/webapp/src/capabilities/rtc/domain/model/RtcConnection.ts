@@ -10,6 +10,8 @@ export type ConnectRtcParams = {
   readonly roomId: string
   readonly participantId: string
   readonly wsUrl: string
+  readonly rmsUrl?: string
+  readonly joinToken?: string
   readonly iceServers: readonly RtcIceServer[]
   readonly micEnabled: boolean
   readonly cameraEnabled: boolean

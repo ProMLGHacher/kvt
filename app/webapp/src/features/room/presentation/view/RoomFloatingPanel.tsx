@@ -12,6 +12,7 @@ type RoomPanelTitleKey =
   | 'room.panels.participants'
   | 'room.panels.roomInfo'
   | 'room.panels.techInfo'
+  | 'room.panels.chat'
 
 export interface RoomFloatingPanelProps {
   readonly roomId: string
@@ -91,6 +92,8 @@ function panelTitle(panel: RoomPanel): RoomPanelTitleKey {
       return 'room.panels.roomInfo'
     case 'techInfo':
       return 'room.panels.techInfo'
+    case 'chat':
+      return 'room.panels.chat'
   }
 }
 

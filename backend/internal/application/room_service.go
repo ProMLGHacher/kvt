@@ -56,6 +56,10 @@ func (s *RoomService) CreateRoom(ctx context.Context) (CreateRoomResult, error) 
 func (s *RoomService) CreateRoomForBaseURL(ctx context.Context, baseURL *url.URL) (CreateRoomResult, error) {
 	_ = baseURL
 	roomID := s.roomIDs.NewID()
+	return s.CreateRoomWithID(ctx, roomID)
+}
+
+func (s *RoomService) CreateRoomWithID(ctx context.Context, roomID string) (CreateRoomResult, error) {
 	now := s.clock.Now()
 	host := domain.NewParticipant(s.ids.NewID(), "Host", domain.RoleHost, now, domain.JoinPreferences{})
 	room := domain.NewRoom(roomID, now, host)
@@ -100,6 +104,13 @@ func (s *RoomService) GetRoomMetadata(ctx context.Context, roomID string) (RoomM
 		ParticipantCount:  len(room.Participants),
 		Roles:             roles,
 	}, nil
+}
+
+func (s *RoomService) DeleteRoom(ctx context.Context, roomID string) error {
+	if _, err := s.rooms.FindByID(ctx, roomID); err != nil {
+		return ErrRoomNotFound
+	}
+	return s.rooms.Delete(ctx, roomID)
 }
 
 func (s *RoomService) JoinRoomByID(ctx context.Context, roomID string, prefs PrejoinPreferences, baseURL *url.URL) (JoinResult, error) {

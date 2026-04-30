@@ -6,6 +6,7 @@ import type {
   MediaError,
   StartLocalPreviewParams
 } from '@capabilities/media/domain/model'
+import { exactDeviceId } from '@capabilities/media/domain/model'
 import type { LocalPreviewRepository } from '@capabilities/media/domain/repository/LocalPreviewRepository'
 import { LocalMediaStateStore } from './LocalMediaStateStore'
 
@@ -327,10 +328,6 @@ function setTracksEnabled(tracks: readonly MediaStreamTrack[], enabled: boolean)
 
 function firstOrNull<T>(items: readonly T[]): T | null {
   return items[0] ?? null
-}
-
-function exactDeviceId(deviceId: string | null | undefined): MediaTrackConstraints['deviceId'] {
-  return deviceId ? { exact: deviceId } : undefined
 }
 
 function getTrackDeviceId(track: MediaStreamTrack | null): string | null {

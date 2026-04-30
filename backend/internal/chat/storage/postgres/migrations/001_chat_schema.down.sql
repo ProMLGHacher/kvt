@@ -1,0 +1,9 @@
+drop table if exists chat_idempotency_keys;
+drop table if exists chat_link_previews;
+drop table if exists chat_attachments;
+drop table if exists chat_read_cursors;
+drop table if exists chat_message_reactions;
+drop table if exists chat_messages;
+drop table if exists chat_channel_members;
+drop table if exists chat_channels;
+drop table if exists chat_spaces;

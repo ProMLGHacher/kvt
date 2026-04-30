@@ -22,6 +22,7 @@ type RoomIDGenerator interface {
 type RoomRepository interface {
 	Save(context.Context, *domain.Room) error
 	FindByID(context.Context, string) (*domain.Room, error)
+	Delete(context.Context, string) error
 }
 
 type SessionRepository interface {
@@ -60,6 +61,12 @@ type JoinResult struct {
 	RoomID        string                 `json:"roomId"`
 	Role          domain.ParticipantRole `json:"role"`
 	WSURL         string                 `json:"wsUrl"`
+	RMSURL        string                 `json:"rmsUrl,omitempty"`
+	JoinToken     string                 `json:"joinToken,omitempty"`
+	ChatURL       string                 `json:"chatUrl,omitempty"`
+	ChatToken     string                 `json:"chatToken,omitempty"`
+	ChatSpaceID   string                 `json:"chatSpaceId,omitempty"`
+	ChatChannelID string                 `json:"chatChannelId,omitempty"`
 	ICEServers    []ICEConfig            `json:"iceServers"`
 	Snapshot      domain.RoomSnapshot    `json:"snapshot"`
 }

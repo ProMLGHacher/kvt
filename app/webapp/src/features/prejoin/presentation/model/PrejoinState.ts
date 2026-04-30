@@ -48,10 +48,7 @@ export const initialPrejoinState: PrejoinUiState = {
   cameraEnabled: false,
   selectedMicrophoneId: null,
   selectedCameraId: null,
-  devices: [
-    { id: 'default-microphone', kind: 'audio-input', label: 'Default microphone' },
-    { id: 'default-camera', kind: 'video-input', label: 'Default camera' }
-  ],
+  devices: [],
   preview: {
     micEnabled: true,
     cameraEnabled: false,

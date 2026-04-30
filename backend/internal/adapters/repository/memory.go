@@ -41,6 +41,13 @@ func (r *InMemoryRoomRepository) FindByID(_ context.Context, roomID string) (*do
 	return room, nil
 }
 
+func (r *InMemoryRoomRepository) Delete(_ context.Context, roomID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.rooms, roomID)
+	return nil
+}
+
 type InMemorySessionRepository struct {
 	mu                   sync.RWMutex
 	sessions             map[string]*domain.PeerSession

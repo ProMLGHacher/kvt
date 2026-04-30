@@ -9,6 +9,8 @@
   },
   "workspaces": [
     "webapp",
+    "rms-sdk",
+    "chat-sdk",
     "kvt/*"
   ],
   "devDependencies": {

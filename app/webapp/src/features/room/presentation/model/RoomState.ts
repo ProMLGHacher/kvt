@@ -2,12 +2,25 @@ import type { ConferenceDiagnostics } from '@features/room/presentation/model/Ro
 import type { RoomControlState } from '@features/room/domain/model/RoomControls'
 import type { Participant } from '@features/room/domain/model/Participant'
 import type { RtcConnectionStatus, RtcMediaStreams } from '@capabilities/rtc/domain/model'
+import type { ChatMessage, ChatConnectionStatus } from '@capabilities/chat/domain/model/Chat'
 import type { PrefixedTranslationKey } from '@core/i18n/translation-key'
 
 export type RoomStatusMessageKey = PrefixedTranslationKey<'voice', 'room.status'>
 export type RoomToastMessageKey = PrefixedTranslationKey<'voice', 'room.toasts'>
 export type RoomErrorMessageKey = PrefixedTranslationKey<'voice', 'room.errors'>
-export type RoomPanel = 'participants' | 'roomInfo' | 'techInfo'
+export type RoomPanel = 'participants' | 'roomInfo' | 'techInfo' | 'chat'
+
+export type RoomChatState = {
+  readonly status: ChatConnectionStatus
+  readonly open: boolean
+  readonly draft: string
+  readonly messages: readonly ChatMessage[]
+  readonly pendingAttachments: readonly ChatMessage['attachments'][number][]
+  readonly unreadCount: number
+  readonly lastReadMessageId: string | null
+  readonly replyToId: string | null
+  readonly error: string | null
+}
 
 export type RoomUiState = {
   readonly roomId: string
@@ -27,6 +40,7 @@ export type RoomUiState = {
   readonly pinnedTileId: string | null
   readonly settingsOpen: boolean
   readonly speakingParticipantIds: readonly string[]
+  readonly chat: RoomChatState
 }
 
 export type RoomUiAction =
@@ -45,6 +59,12 @@ export type RoomUiAction =
   | { readonly type: 'tile-pin-toggled'; readonly tileId: string }
   | { readonly type: 'settings-opened' }
   | { readonly type: 'settings-closed' }
+  | { readonly type: 'chat-draft-changed'; readonly value: string }
+  | { readonly type: 'chat-message-sent' }
+  | { readonly type: 'chat-file-selected'; readonly file: File }
+  | { readonly type: 'chat-reaction-toggled'; readonly messageId: string; readonly emoji: string }
+  | { readonly type: 'chat-reply-started'; readonly messageId: string }
+  | { readonly type: 'chat-reply-cancelled' }
 
 export type RoomUiEffect =
   | { readonly type: 'navigate-home' }
@@ -74,5 +94,16 @@ export const initialRoomState: RoomUiState = {
   activePanel: null,
   pinnedTileId: null,
   settingsOpen: false,
-  speakingParticipantIds: []
+  speakingParticipantIds: [],
+  chat: {
+    status: 'idle',
+    open: false,
+    draft: '',
+    messages: [],
+    pendingAttachments: [],
+    unreadCount: 0,
+    lastReadMessageId: null,
+    replyToId: null,
+    error: null
+  }
 }

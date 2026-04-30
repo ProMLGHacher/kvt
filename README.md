@@ -1,6 +1,6 @@
-# Voice-First SFU Conference
+# Kvatum Realtime Conference
 
-Монорепозиторий голосового WebRTC-продукта на SFU-архитектуре.
+Монорепозиторий Kvatum: продуктовый webapp, main-server, RMS (Realtime Media Service) и browser SDK для конференций.
 
 Если ты новый разработчик, начни с документации: там собрана вся основная информация по архитектуре,
 запуску, правилам разработки и взаимодействию сервисов.
@@ -24,14 +24,15 @@
    - `Project` - обзор продукта, архитектура, взаимодействия сервисов, маршрут онбординга.
    - `KVT` - framework-уровень (`@kvt/core`, `@kvt/react`, `@kvt/theme`).
    - `Webapp` - frontend-практики, архитектура, UI, i18n, deploy-аспекты приложения.
-   - `Backend` - API/signaling/SFU, runtime-модель, health и диагностика.
+   - `Backend` - main-server, RMS, signaling, runtime-модель, health и диагностика.
 
 ## Структура репозитория
 
 - `app/webapp` - продуктовый React + TypeScript клиент.
+- `app/rms-sdk` - browser TypeScript SDK для RMS без React/UI-зависимостей.
 - `app/kvt` - локальные KVT framework packages.
-- `backend` - Go backend (REST API, signaling, SFU, room/session).
-- `deploy` - Docker Compose инфраструктура (nginx gateway, backend, web, TURN).
+- `backend` - Go backend: main-server для продукта и RMS для realtime media.
+- `deploy` - Docker Compose инфраструктура (nginx gateway, main-server, RMS, web, TURN).
 - `docs` - основная двуязычная документация проекта (EN/RU).
 
 ## Запуск проекта

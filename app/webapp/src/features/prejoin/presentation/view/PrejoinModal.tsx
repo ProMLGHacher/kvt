@@ -42,8 +42,11 @@ export function PrejoinModal({
   const cameras = uiState.devices.filter((device) => device.kind === 'video-input')
 
   useEffect(() => {
+    if (!open || !roomId.trim()) {
+      return
+    }
     viewModel.onEvent({ type: 'room-configured', roomId, role })
-  }, [role, roomId, viewModel])
+  }, [open, role, roomId, viewModel])
 
   useSharedFlow(viewModel.uiEffect, (effect) => {
     switch (effect.type) {

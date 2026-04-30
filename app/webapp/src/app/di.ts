@@ -1,5 +1,6 @@
 import { Module, createModuleFromClass } from '@kvt/core'
 import { audioProcessingModule } from '@capabilities/audio-processing/di'
+import { chatCapabilityModule } from '@capabilities/chat/di'
 import { clientLogsModule } from '@capabilities/client-logs/di'
 import { clipboardModule } from '@capabilities/clipboard/di'
 import { conferenceAudioModule } from '@capabilities/conference-audio/di'
@@ -15,6 +16,7 @@ import { settingsModule } from '@features/settings/di'
   name: 'AppModule',
   includes: [
     audioProcessingModule,
+    chatCapabilityModule,
     clipboardModule,
     clientLogsModule,
     conferenceAudioModule,

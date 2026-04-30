@@ -3,6 +3,7 @@ import {
   normalizeAudioProcessingSettings,
   type AudioProcessingSettings
 } from '@capabilities/audio-processing/domain/model'
+import { normalizePreferredDeviceId } from '@capabilities/media/domain/model'
 import type { UserSettings } from '@capabilities/user-preferences/domain/model/UserSettings'
 import type { UserSettingsRepository } from '@capabilities/user-preferences/domain/repository/UserSettingsRepository'
 
@@ -29,11 +30,11 @@ export class LocalStorageUserSettingsRepository implements UserSettingsRepositor
   }
 
   async savePreferredMicrophoneId(deviceId: string | null): Promise<void> {
-    this.write({ ...this.read(), preferredMicrophoneId: deviceId })
+    this.write({ ...this.read(), preferredMicrophoneId: normalizePreferredDeviceId(deviceId) })
   }
 
   async savePreferredCameraId(deviceId: string | null): Promise<void> {
-    this.write({ ...this.read(), preferredCameraId: deviceId })
+    this.write({ ...this.read(), preferredCameraId: normalizePreferredDeviceId(deviceId) })
   }
 
   async saveDefaultMicEnabled(enabled: boolean): Promise<void> {
@@ -63,6 +64,8 @@ export class LocalStorageUserSettingsRepository implements UserSettingsRepositor
       return {
         ...defaultSettings,
         ...parsed,
+        preferredMicrophoneId: normalizePreferredDeviceId(parsed.preferredMicrophoneId),
+        preferredCameraId: normalizePreferredDeviceId(parsed.preferredCameraId),
         audioProcessing: normalizeAudioProcessingSettings(parsed.audioProcessing)
       }
     } catch {

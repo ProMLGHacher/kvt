@@ -84,6 +84,7 @@ export default {
       participants: 'Участники',
       roomInfo: 'Информация о комнате',
       techInfo: 'Тех. инфо',
+      chat: 'Чат',
       settings: 'Настройки',
       close: 'Закрыть'
     },
@@ -131,6 +132,17 @@ export default {
       noDiagnostics: 'Диагностики пока нет.',
       export: 'Экспорт',
       clear: 'Очистить'
+    },
+    chat: {
+      title: 'Чат встречи',
+      empty: 'Сообщений пока нет.',
+      placeholder: 'Напишите сообщение...',
+      send: 'Отправить',
+      reply: 'Ответить',
+      cancelReply: 'Отменить ответ',
+      edited: 'изменено',
+      newMessages: 'Новые сообщения',
+      today: 'Сегодня'
     },
     status: {
       checkingRoom: 'Проверяем комнату.',

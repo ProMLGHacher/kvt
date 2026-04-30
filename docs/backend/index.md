@@ -1,14 +1,23 @@
 # Backend
 
-The backend is a Go service built around Pion WebRTC.
+The backend is split into four Go processes:
+
+- `cmd/main-server`: product-facing room API and RMS orchestration.
+- `cmd/rms-server`: Realtime Media Service for signaling, WebRTC media routing and volatile participant state.
+- `cmd/chat-server`: Kvatum Chat Service for chat channels, messages, reactions, read cursors and chat WebSocket fanout.
+- `cmd/chat-worker`: async chat worker for attachment/link-preview jobs.
+
+RMS is built around Pion WebRTC.
 
 Responsibilities:
 
-- room lifecycle;
-- participant sessions;
+- product room lifecycle in `main-server`;
+- realtime room/session lifecycle in `rms-server`;
+- chat space/channel/session lifecycle in `chat-server`;
 - REST API;
-- WebSocket signaling;
-- SFU publisher/subscriber orchestration;
+- WebSocket signaling in RMS;
+- WebSocket chat events in Chat Service;
+- media publisher/subscriber orchestration in RMS;
 - OpenAPI/Swagger documentation;
 - health checks.
 
@@ -16,7 +25,11 @@ Responsibilities:
 
 ```text
 backend/
-  cmd/server/                 process entrypoint
+  cmd/main-server/            product API process entrypoint
+  cmd/rms-server/             Realtime Media Service process entrypoint
+  cmd/chat-server/            Kvatum Chat Service process entrypoint
+  cmd/chat-worker/            async Chat Service worker entrypoint
+  cmd/server/                 legacy combined process entrypoint
   internal/config/            environment loading
   internal/domain/            room and media domain models
   internal/application/       use cases and coordinators
@@ -25,6 +38,7 @@ backend/
   internal/adapters/signaling WebSocket hub
   internal/adapters/repository in-memory repositories
   internal/protocol/          signaling message contracts
+  internal/chat/              chat domain, application service, HTTP/WS protocol
 ```
 
 ## Local commands
@@ -82,13 +96,22 @@ http://backend:8080/healthz
 
 ## Runtime model
 
-The current runtime is single-node and in-memory.
+Product rooms and RMS realtime rooms are still volatile in v1. Chat Service now has a production
+storage path:
+
+- `CHAT_STORAGE=postgres` is the default Docker path;
+- `CHAT_STORAGE=inmemory` remains available for tests/dev fallback;
+- Postgres stores spaces/channels/messages/reactions/read cursors/attachments/link previews;
+- Redis is used for presence and REST rate-limit counters;
+- Kafka broadcasts chat events across chat-server instances;
+- MinIO/S3 stores attachment objects through presigned upload URLs.
 
 That means:
 
-- rooms disappear after backend restart;
-- participant sessions disappear after backend restart;
-- repositories are structured so Redis/Postgres can be added later, but v1 does not require them.
+- product rooms disappear after main-server restart;
+- realtime rooms and participant sessions disappear after RMS restart;
+- chat messages persist after Chat Service restart when `CHAT_STORAGE=postgres`;
+- media/link preview processing is isolated in `chat-worker`, so heavy async work does not block REST/WS paths.
 
 Room-not-found states must be handled by UI because a refresh after restart can point to a room that
 no longer exists.
@@ -100,11 +123,12 @@ The client uses:
 - one publisher PeerConnection for local audio/camera/screen;
 - one subscriber PeerConnection for all remote room media.
 
-The backend SFU keeps stable media slots:
+RMS keeps stable media slots:
 
 - `audio`;
 - `camera`;
 - `screen`.
+- `screenAudio`.
 
 This is designed so camera/screen changes can renegotiate without dropping the audio path.
 

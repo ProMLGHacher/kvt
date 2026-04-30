@@ -1,5 +1,6 @@
 import { SignalingClient, type SignalingState } from './signaling'
 import type { AudioProcessingRepository } from '@capabilities/audio-processing/domain/repository/AudioProcessingRepository'
+import { exactDeviceId } from '@capabilities/media/domain/model'
 import type {
   CandidatePayload,
   ErrorPayload,
@@ -1254,8 +1255,4 @@ function describeMediaFlowStats(stat: RTCStats) {
     firCount: flow.firCount ?? null,
     nackCount: flow.nackCount ?? null
   }
-}
-
-function exactDeviceId(deviceId: string | null | undefined): MediaTrackConstraints['deviceId'] {
-  return deviceId ? { exact: deviceId } : undefined
 }

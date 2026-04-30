@@ -168,6 +168,21 @@ export function CodeIcon() {
   )
 }
 
+export function ChatIcon() {
+  return (
+    <svg aria-hidden="true" className="size-5" fill="none" viewBox="0 0 24 24">
+      <path
+        d="M5.5 5.5h13A2.5 2.5 0 0 1 21 8v7.5A2.5 2.5 0 0 1 18.5 18H10l-5 3v-3.5A2.5 2.5 0 0 1 3 15V8a2.5 2.5 0 0 1 2.5-2.5Z"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      <path d="M8 10h8M8 13.5h5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
 export function CloseIcon() {
   return (
     <svg aria-hidden="true" className="size-5" fill="none" viewBox="0 0 24 24">
